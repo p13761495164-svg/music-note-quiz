@@ -165,6 +165,7 @@
     }
 
     .staff-shell {
+      position: relative;
       width: min(448px, 100%);
       aspect-ratio: 3 / 1;
       overflow: hidden;
@@ -174,6 +175,24 @@
       box-shadow: 0 2px 4px rgba(45, 34, 28, .06);
     }
     #staff { display: block; width: 100%; height: 100%; }
+    .replay-button {
+      position: absolute;
+      inset: 50% auto auto 50%;
+      transform: translate(-50%, -50%);
+      display: none;
+      min-width: 120px;
+      min-height: 44px;
+      border: 0;
+      border-radius: 999px;
+      background: var(--primary);
+      color: var(--bg);
+      font-weight: 750;
+      font-size: 16px;
+      box-shadow: 0 8px 22px rgba(90, 67, 56, .18);
+      cursor: pointer;
+    }
+    .staff-shell.hidden-staff #staff { display: none; }
+    .staff-shell.hidden-staff .replay-button { display: inline-flex; align-items: center; justify-content: center; }
 
     .feedback {
       height: 32px;
@@ -305,10 +324,18 @@
               <label class="radio-choice"><input type="radio" name="note-label-mode" value="none" checked>隐藏</label>
             </div>
           </div>
+          <div class="setting">
+            <span class="setting-label">谱面:</span>
+            <div class="segmented" role="group" aria-label="五线谱显示">
+              <button id="show-staff-button" class="active" type="button" aria-pressed="true">显示</button>
+              <button id="hide-staff-button" type="button" aria-pressed="false">隐藏</button>
+            </div>
+          </div>
         </div>
 
-        <div class="staff-shell">
+        <div id="staff-shell" class="staff-shell">
           <svg id="staff" viewBox="0 0 300 120" role="img" aria-label="五线谱题目"></svg>
+          <button id="replay-button" class="replay-button" type="button">重听</button>
         </div>
 
         <div class="feedback" aria-live="polite">
@@ -372,6 +399,7 @@
       let feedbackType = null;
       let score = { correct: 0, total: 0 };
       let noteLabelMode = "none";
+      let showStaff = true;
       let advanceTimer = null;
       let stateUpdatedAt = 0;
       let audioContext = null;
@@ -387,6 +415,7 @@
         if (["letter", "degree", "none"].includes(saved.noteLabelMode)) {
           noteLabelMode = saved.noteLabelMode;
         }
+        if (typeof saved.showStaff === "boolean") showStaff = saved.showStaff;
         stateUpdatedAt = Number.isFinite(saved.updatedAt) ? saved.updatedAt : 0;
         return true;
       }
@@ -400,11 +429,15 @@
       const keySelect = document.querySelector("#key-signature");
       const trebleButton = document.querySelector("#treble-button");
       const bassButton = document.querySelector("#bass-button");
+      const showStaffButton = document.querySelector("#show-staff-button");
+      const hideStaffButton = document.querySelector("#hide-staff-button");
       const noteLabelInputs = [...document.querySelectorAll('input[name="note-label-mode"]')];
       const feedbackPill = document.querySelector("#feedback-pill");
       const nextButton = document.querySelector("#next-button");
+      const replayButton = document.querySelector("#replay-button");
       const keyboard = document.querySelector("#keyboard");
       const staff = document.querySelector("#staff");
+      const staffShell = document.querySelector("#staff-shell");
 
       function svg(name, attrs = {}, text = "") {
         const node = document.createElementNS(SVG_NS, name);
@@ -477,8 +510,16 @@
         return 440 * Math.pow(2, (midi - 69) / 12);
       }
 
-      function playCurrentNote() {
-        const frequency = currentNoteFrequency();
+      function noteNameFrequency(noteName, octave) {
+        const basePitch = { C:0, D:2, E:4, F:5, G:7, A:9, B:11 }[noteName[0]];
+        if (!Number.isFinite(basePitch) || !Number.isInteger(octave)) return null;
+        const accidental = noteName.slice(1);
+        const offset = accidental === "#" ? 1 : accidental === "b" ? -1 : 0;
+        const midi = (octave + 1) * 12 + basePitch + offset;
+        return 440 * Math.pow(2, (midi - 69) / 12);
+      }
+
+      function playTone(frequency) {
         const context = frequency ? getAudioContext() : null;
         if (!context) return;
 
@@ -521,6 +562,15 @@
           return;
         }
         play();
+      }
+
+      function playCurrentNote() {
+        playTone(currentNoteFrequency());
+      }
+
+      function playPressedKey(noteName) {
+        if (!currentNote) return;
+        playTone(noteNameFrequency(noteName, currentNote[1]));
       }
 
       function unlockAudio() {
@@ -587,6 +637,11 @@
         bassButton.classList.toggle("active", clef === "bass");
         trebleButton.setAttribute("aria-pressed", clef === "treble");
         bassButton.setAttribute("aria-pressed", clef === "bass");
+        showStaffButton.classList.toggle("active", showStaff);
+        hideStaffButton.classList.toggle("active", !showStaff);
+        showStaffButton.setAttribute("aria-pressed", showStaff);
+        hideStaffButton.setAttribute("aria-pressed", !showStaff);
+        staffShell.classList.toggle("hidden-staff", !showStaff);
         noteLabelInputs.forEach(input => { input.checked = input.value === noteLabelMode; });
         updateScore();
         drawKeyboard();
@@ -618,6 +673,7 @@
           correct: score.correct,
           total: score.total,
           noteLabelMode,
+          showStaff,
           updatedAt: stateUpdatedAt
         };
         try {
@@ -639,6 +695,7 @@
 
       function pressKey(pressedKey) {
         if (!currentNote || feedbackType === "correct") return;
+        playPressedKey(pressedKey);
         const answer = expectedKey();
         const previouslyWrong = feedbackType === "wrong";
         resetKeys();
@@ -672,7 +729,9 @@
       }
 
       function drawStaff() {
+        staffShell.classList.toggle("hidden-staff", !showStaff);
         staff.replaceChildren();
+        if (!showStaff) return;
         staff.append(svg("rect", { width:300, height:120, fill:"transparent" }));
         const group = svg("g", { transform:"translate(0,60)" });
         staff.append(group);
@@ -786,6 +845,17 @@
 
       trebleButton.addEventListener("click", () => setClef("treble"));
       bassButton.addEventListener("click", () => setClef("bass"));
+      function setStaffVisibility(nextShowStaff) {
+        showStaff = nextShowStaff;
+        showStaffButton.classList.toggle("active", showStaff);
+        hideStaffButton.classList.toggle("active", !showStaff);
+        showStaffButton.setAttribute("aria-pressed", showStaff);
+        hideStaffButton.setAttribute("aria-pressed", !showStaff);
+        saveState();
+        drawStaff();
+      }
+      showStaffButton.addEventListener("click", () => setStaffVisibility(true));
+      hideStaffButton.addEventListener("click", () => setStaffVisibility(false));
       noteLabelInputs.forEach(input => {
         input.addEventListener("change", () => {
           noteLabelMode = input.value;
@@ -794,6 +864,7 @@
         });
       });
       nextButton.addEventListener("click", generateQuestion);
+      replayButton.addEventListener("click", playCurrentNote);
       document.addEventListener("pointerdown", unlockAudio, { once:true });
 
       refreshSavedSettings();
