@@ -1,0 +1,733 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1">
+  <meta name="description" content="离线可运行的音符识谱练习">
+  <title>音符识谱练习</title>
+  <style>
+    :root {
+      color-scheme: light;
+      --bg: hsl(40 33% 96%);
+      --fg: hsl(20 20% 15%);
+      --muted: hsl(25 10% 45%);
+      --border: hsl(30 15% 85%);
+      --card: hsl(40 33% 98%);
+      --primary: hsl(20 25% 25%);
+      --secondary: hsl(35 25% 90%);
+      font-family: Inter, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+    }
+
+    * { box-sizing: border-box; }
+    body {
+      margin: 0;
+      min-height: 100dvh;
+      background: var(--bg);
+      color: var(--fg);
+    }
+    button, select { font: inherit; }
+    button { touch-action: manipulation; }
+
+    main {
+      min-height: 100dvh;
+      display: grid;
+      place-items: center;
+      padding: 16px;
+    }
+
+    .card {
+      width: min(672px, 100%);
+      overflow: hidden;
+      border: 1px solid color-mix(in srgb, var(--border) 70%, transparent);
+      border-radius: 12px;
+      background: var(--card);
+      box-shadow: 0 14px 30px rgba(45, 34, 28, .12);
+    }
+
+    header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 24px;
+      border-bottom: 1px solid color-mix(in srgb, var(--border) 60%, transparent);
+    }
+    h1 {
+      margin: 0;
+      font: 700 24px/1.2 Georgia, "Times New Roman", serif;
+    }
+    .subtitle, .score-label {
+      color: var(--muted);
+      font-size: 13px;
+    }
+    .subtitle { margin-top: 5px; }
+    .score { text-align: right; }
+    .score-label {
+      font-weight: 700;
+      letter-spacing: .13em;
+    }
+    .score-value {
+      margin-top: 2px;
+      color: var(--primary);
+      font: 700 24px/1.1 ui-monospace, SFMono-Regular, Menlo, monospace;
+    }
+    .score-value span { color: var(--muted); font-size: 19px; }
+
+    .content {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      gap: 28px;
+      padding: 24px;
+    }
+
+    .settings {
+      width: 100%;
+      display: flex;
+      flex-wrap: wrap;
+      align-items: center;
+      justify-content: space-between;
+      gap: 14px;
+      padding: 12px;
+      border: 1px solid color-mix(in srgb, var(--border) 55%, transparent);
+      border-radius: 9px;
+      background: color-mix(in srgb, var(--secondary) 36%, transparent);
+    }
+    .setting {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+    }
+    .setting-label {
+      width: 45px;
+      color: var(--muted);
+      font-size: 14px;
+      font-weight: 600;
+    }
+    select {
+      width: 140px;
+      min-height: 40px;
+      padding: 0 12px;
+      border: 1px solid var(--border);
+      border-radius: 7px;
+      background: var(--card);
+      color: var(--fg);
+    }
+    .segmented {
+      display: flex;
+      gap: 3px;
+      padding: 4px;
+      border: 1px solid var(--border);
+      border-radius: 7px;
+      background: var(--card);
+    }
+    .segmented button {
+      min-height: 32px;
+      padding: 0 16px;
+      border: 0;
+      border-radius: 5px;
+      background: transparent;
+      color: var(--fg);
+      cursor: pointer;
+    }
+    .segmented button.active {
+      background: var(--primary);
+      color: var(--bg);
+    }
+    .radio-group {
+      display: flex;
+      gap: 5px;
+      padding: 4px;
+      border: 1px solid var(--border);
+      border-radius: 7px;
+      background: var(--card);
+    }
+    .radio-choice {
+      position: relative;
+      min-height: 32px;
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      padding: 0 12px;
+      border-radius: 5px;
+      color: var(--fg);
+      font-weight: 600;
+      cursor: pointer;
+    }
+    .radio-choice input {
+      position: absolute;
+      inset: 0;
+      opacity: 0;
+      cursor: pointer;
+    }
+    .radio-choice:has(input:checked) {
+      background: var(--primary);
+      color: var(--bg);
+    }
+
+    .staff-shell {
+      width: min(448px, 100%);
+      aspect-ratio: 3 / 1;
+      overflow: hidden;
+      border: 1px solid var(--border);
+      border-radius: 12px;
+      background: var(--card);
+      box-shadow: 0 2px 4px rgba(45, 34, 28, .06);
+    }
+    #staff { display: block; width: 100%; height: 100%; }
+
+    .feedback {
+      height: 32px;
+      display: grid;
+      place-items: center;
+    }
+    .feedback-pill {
+      display: none;
+      align-items: center;
+      gap: 7px;
+      padding: 6px 14px;
+      border: 1px solid;
+      border-radius: 999px;
+      font-size: 14px;
+      font-weight: 650;
+    }
+    .feedback-pill.show { display: flex; animation: appear .18s ease-out; }
+    .feedback-pill.correct { border-color: #bbdfc4; background: #eaf7ed; color: #216b35; }
+    .feedback-pill.wrong { border-color: #efcaca; background: #fff0f0; color: #8c2929; }
+    @keyframes appear { from { opacity: 0; transform: translateY(5px); } }
+
+    .keyboard-scroll {
+      width: 100%;
+      overflow-x: auto;
+      padding: 8px 0 4px;
+    }
+    .keyboard {
+      position: relative;
+      width: 336px;
+      height: 160px;
+      margin: 0 auto;
+      user-select: none;
+    }
+    .white-key, .black-key {
+      position: absolute;
+      bottom: 0;
+      display: flex;
+      align-items: flex-end;
+      justify-content: center;
+      border-radius: 0 0 7px 7px;
+      cursor: pointer;
+      transition: background-color .16s, color .16s, transform .08s;
+      transform-origin: top;
+    }
+    .white-key:active, .black-key:active { transform: scaleY(.97); }
+    .white-key {
+      z-index: 1;
+      width: 48px;
+      height: 160px;
+      padding-bottom: 16px;
+      border: 1px solid #c9c9c9;
+      background: #fff;
+      color: #5b5b5b;
+      font-weight: 650;
+      box-shadow: 0 2px 3px rgba(0,0,0,.08);
+    }
+    .black-key {
+      z-index: 2;
+      top: 0;
+      bottom: auto;
+      width: 32px;
+      height: 96px;
+      padding-bottom: 8px;
+      border: 1px solid #171717;
+      background: #202020;
+      color: #aaa;
+      font-size: 11px;
+      box-shadow: 0 3px 5px rgba(0,0,0,.24);
+    }
+    .white-key.correct, .black-key.correct { border-color: #1f9d4c; background: #35b95d; color: #fff; }
+    .white-key.wrong, .black-key.wrong { border-color: #c63636; background: #e04b4b; color: #fff; }
+    .white-key.hint, .black-key.hint { border-color: #d99a14; background: #f2bd3f; color: #5a3b00; }
+
+    .next {
+      display: none;
+      min-height: 38px;
+      padding: 0 17px;
+      border: 1px solid var(--border);
+      border-radius: 7px;
+      background: var(--card);
+      color: var(--fg);
+      cursor: pointer;
+    }
+    .next.show { display: block; }
+
+    @media (max-width: 560px) {
+      main { display: block; padding: 10px 0 0; }
+      .card { min-height: 100dvh; border: 0; border-radius: 0; box-shadow: none; }
+      header, .content { padding: 18px; }
+      .content { gap: 22px; }
+      .settings { align-items: stretch; }
+      .setting { flex: 1 1 220px; justify-content: space-between; }
+      .keyboard { margin-inline: max(0px, calc((100% - 336px) / 2)); }
+    }
+  </style>
+</head>
+<body>
+  <main>
+    <section class="card" aria-label="识谱练习">
+      <header>
+        <div>
+          <h1>识谱练习</h1>
+          <div class="subtitle">Note Reading Practice</div>
+        </div>
+        <div class="score" aria-live="polite">
+          <div class="score-label">分数</div>
+          <div class="score-value"><b id="correct-score">0</b> <span>/ <b id="total-score">0</b></span></div>
+        </div>
+      </header>
+
+      <div class="content">
+        <div class="settings">
+          <label class="setting">
+            <span class="setting-label">调号:</span>
+            <select id="key-signature" aria-label="调号"></select>
+          </label>
+          <div class="setting">
+            <span class="setting-label">谱号:</span>
+            <div class="segmented" role="group" aria-label="谱号">
+              <button id="treble-button" class="active" type="button" aria-pressed="true">高音</button>
+              <button id="bass-button" type="button" aria-pressed="false">低音</button>
+            </div>
+          </div>
+          <div class="setting">
+            <span class="setting-label">音符:</span>
+            <div class="radio-group" role="radiogroup" aria-label="音符显示">
+              <label class="radio-choice"><input type="radio" name="note-label-mode" value="letter">音高</label>
+              <label class="radio-choice"><input type="radio" name="note-label-mode" value="degree">级数</label>
+              <label class="radio-choice"><input type="radio" name="note-label-mode" value="none" checked>隐藏</label>
+            </div>
+          </div>
+        </div>
+
+        <div class="staff-shell">
+          <svg id="staff" viewBox="0 0 300 120" role="img" aria-label="五线谱题目"></svg>
+        </div>
+
+        <div class="feedback" aria-live="polite">
+          <div id="feedback-pill" class="feedback-pill"></div>
+        </div>
+
+        <div class="keyboard-scroll">
+          <div id="keyboard" class="keyboard" aria-label="钢琴键盘"></div>
+        </div>
+
+        <button id="next-button" class="next" type="button">下一题</button>
+      </div>
+    </section>
+  </main>
+
+  <script>
+    (() => {
+      "use strict";
+
+      const KEY_SIGNATURES = {
+        C:  { name: "C大调",  accidentals: [] },
+        G:  { name: "G大调",  accidentals: [["F", "sharp"]] },
+        D:  { name: "D大调",  accidentals: [["F", "sharp"], ["C", "sharp"]] },
+        A:  { name: "A大调",  accidentals: [["F", "sharp"], ["C", "sharp"], ["G", "sharp"]] },
+        E:  { name: "E大调",  accidentals: [["F", "sharp"], ["C", "sharp"], ["G", "sharp"], ["D", "sharp"]] },
+        B:  { name: "B大调",  accidentals: [["F", "sharp"], ["C", "sharp"], ["G", "sharp"], ["D", "sharp"], ["A", "sharp"]] },
+        "F#": { name: "F#大调", accidentals: [["F", "sharp"], ["C", "sharp"], ["G", "sharp"], ["D", "sharp"], ["A", "sharp"], ["E", "sharp"]] },
+        F:  { name: "F大调",  accidentals: [["B", "flat"]] },
+        Bb: { name: "Bb大调", accidentals: [["B", "flat"], ["E", "flat"]] },
+        Eb: { name: "Eb大调", accidentals: [["B", "flat"], ["E", "flat"], ["A", "flat"]] },
+        Ab: { name: "Ab大调", accidentals: [["B", "flat"], ["E", "flat"], ["A", "flat"], ["D", "flat"]] },
+        Db: { name: "Db大调", accidentals: [["B", "flat"], ["E", "flat"], ["A", "flat"], ["D", "flat"], ["G", "flat"]] }
+      };
+
+      const TREBLE_NOTES = [
+        ["C",4,-6],["D",4,-5],["E",4,-4],["F",4,-3],["G",4,-2],["A",4,-1],
+        ["B",4,0],["C",5,1],["D",5,2],["E",5,3],["F",5,4],["G",5,5],["A",5,6]
+      ];
+      const BASS_NOTES = [
+        ["E",2,-6],["F",2,-5],["G",2,-4],["A",2,-3],["B",2,-2],["C",3,-1],
+        ["D",3,0],["E",3,1],["F",3,2],["G",3,3],["A",3,4],["B",3,5],["C",4,6]
+      ];
+      const ACC_Y = {
+        sharp: {
+          treble: { F:-24, C:-6, G:-30, D:-12, A:6, E:-18 },
+          bass: { F:-12, C:6, G:-18, D:0, A:-24, E:-6 }
+        },
+        flat: {
+          treble: { B:0, E:-18, A:6, D:-12, G:12 },
+          bass: { B:12, E:-6, A:18, D:0, G:24 }
+        }
+      };
+      const SVG_NS = "http://www.w3.org/2000/svg";
+      const STORAGE_KEY = "music-note-quiz-state";
+      const DB_NAME = "music-note-quiz";
+      const DB_STORE = "state";
+
+      let clef = "treble";
+      let keySig = "C";
+      let currentNote = null;
+      let feedbackType = null;
+      let score = { correct: 0, total: 0 };
+      let noteLabelMode = "none";
+      let advanceTimer = null;
+      let stateUpdatedAt = 0;
+
+      function applySavedState(saved) {
+        if (!saved || typeof saved !== "object") return false;
+        if (Object.hasOwn(KEY_SIGNATURES, saved.keySig)) keySig = saved.keySig;
+        if (saved.clef === "treble" || saved.clef === "bass") clef = saved.clef;
+        if (Number.isInteger(saved.correct) && Number.isInteger(saved.total)
+            && saved.correct >= 0 && saved.total >= saved.correct) {
+          score = { correct: saved.correct, total: saved.total };
+        }
+        if (["letter", "degree", "none"].includes(saved.noteLabelMode)) {
+          noteLabelMode = saved.noteLabelMode;
+        }
+        stateUpdatedAt = Number.isFinite(saved.updatedAt) ? saved.updatedAt : 0;
+        return true;
+      }
+
+      try {
+        applySavedState(JSON.parse(localStorage.getItem(STORAGE_KEY)));
+      } catch (_) {
+        // Local storage can be unavailable for some browser privacy settings.
+      }
+
+      const keySelect = document.querySelector("#key-signature");
+      const trebleButton = document.querySelector("#treble-button");
+      const bassButton = document.querySelector("#bass-button");
+      const noteLabelInputs = [...document.querySelectorAll('input[name="note-label-mode"]')];
+      const feedbackPill = document.querySelector("#feedback-pill");
+      const nextButton = document.querySelector("#next-button");
+      const keyboard = document.querySelector("#keyboard");
+      const staff = document.querySelector("#staff");
+
+      function svg(name, attrs = {}, text = "") {
+        const node = document.createElementNS(SVG_NS, name);
+        Object.entries(attrs).forEach(([key, value]) => node.setAttribute(key, value));
+        if (text) node.textContent = text;
+        return node;
+      }
+
+      function randomNote() {
+        const notes = (clef === "treble" ? TREBLE_NOTES : BASS_NOTES).slice(1, -1);
+        const candidates = currentNote
+          ? notes.filter(n => !(n[0] === currentNote[0] && n[1] === currentNote[1]))
+          : notes;
+        return candidates[Math.floor(Math.random() * candidates.length)];
+      }
+
+      function clearAdvanceTimer() {
+        if (advanceTimer !== null) {
+          clearTimeout(advanceTimer);
+          advanceTimer = null;
+        }
+      }
+
+      function generateQuestion() {
+        clearAdvanceTimer();
+        currentNote = randomNote();
+        feedbackType = null;
+        showFeedback("", null);
+        resetKeys();
+        drawStaff();
+      }
+
+      function expectedKey() {
+        const accidental = KEY_SIGNATURES[keySig].accidentals.find(item => item[0] === currentNote[0]);
+        if (!accidental) return currentNote[0];
+        return currentNote[0] + (accidental[1] === "sharp" ? "#" : "b");
+      }
+
+      function pitchClass(note) {
+        const base = { C:0, D:2, E:4, F:5, G:7, A:9, B:11 }[note[0]];
+        const accidental = note.slice(1);
+        if (accidental === "#") return (base + 1) % 12;
+        if (accidental === "b") return (base + 11) % 12;
+        return base;
+      }
+
+      function noteDegreeLabel() {
+        const tonic = pitchClass(keySig);
+        const note = pitchClass(expectedKey());
+        const majorScale = [0, 2, 4, 5, 7, 9, 11];
+        const interval = (note - tonic + 12) % 12;
+        const degree = majorScale.indexOf(interval);
+        return degree >= 0 ? String(degree + 1) : "";
+      }
+
+      function currentNoteLabel() {
+        if (!currentNote || noteLabelMode === "none") return "";
+        if (noteLabelMode === "letter") return expectedKey();
+        return noteDegreeLabel();
+      }
+
+      function showFeedback(message, type) {
+        feedbackPill.className = "feedback-pill";
+        feedbackPill.textContent = "";
+        nextButton.classList.toggle("show", type === "wrong");
+        if (!message) return;
+        feedbackPill.textContent = (type === "correct" ? "✓ " : "✕ ") + message;
+        feedbackPill.classList.add("show", type);
+      }
+
+      function updateScore() {
+        document.querySelector("#correct-score").textContent = score.correct;
+        document.querySelector("#total-score").textContent = score.total;
+      }
+
+      function openStateDb() {
+        return new Promise((resolve, reject) => {
+          if (!window.indexedDB) return reject(new Error("IndexedDB unavailable"));
+          const request = indexedDB.open(DB_NAME, 1);
+          request.onupgradeneeded = () => request.result.createObjectStore(DB_STORE);
+          request.onsuccess = () => resolve(request.result);
+          request.onerror = () => reject(request.error);
+        });
+      }
+
+      async function writeStateToDb(saved) {
+        const db = await openStateDb();
+        await new Promise((resolve, reject) => {
+          const transaction = db.transaction(DB_STORE, "readwrite");
+          transaction.objectStore(DB_STORE).put(saved, STORAGE_KEY);
+          transaction.oncomplete = resolve;
+          transaction.onerror = () => reject(transaction.error);
+        });
+        db.close();
+      }
+
+      async function readStateFromDb() {
+        const db = await openStateDb();
+        const saved = await new Promise((resolve, reject) => {
+          const request = db.transaction(DB_STORE, "readonly").objectStore(DB_STORE).get(STORAGE_KEY);
+          request.onsuccess = () => resolve(request.result);
+          request.onerror = () => reject(request.error);
+        });
+        db.close();
+        return saved;
+      }
+
+      function refreshSavedSettings() {
+        keySelect.value = keySig;
+        trebleButton.classList.toggle("active", clef === "treble");
+        bassButton.classList.toggle("active", clef === "bass");
+        trebleButton.setAttribute("aria-pressed", clef === "treble");
+        bassButton.setAttribute("aria-pressed", clef === "bass");
+        noteLabelInputs.forEach(input => { input.checked = input.value === noteLabelMode; });
+        updateScore();
+        drawKeyboard();
+        generateQuestion();
+      }
+
+      async function restoreIndexedDbState() {
+        try {
+          const saved = await readStateFromDb();
+          if (saved && (Number.isFinite(saved.updatedAt) ? saved.updatedAt : 0) > stateUpdatedAt) {
+            applySavedState(saved);
+            refreshSavedSettings();
+            try {
+              localStorage.setItem(STORAGE_KEY, JSON.stringify(saved));
+            } catch (_) {}
+          } else if (!saved) {
+            saveState();
+          }
+        } catch (_) {
+          // Some Safari file URLs do not permit persistent IndexedDB storage.
+        }
+      }
+
+      function saveState() {
+        stateUpdatedAt = Date.now();
+        const saved = {
+          keySig,
+          clef,
+          correct: score.correct,
+          total: score.total,
+          noteLabelMode,
+          updatedAt: stateUpdatedAt
+        };
+        try {
+          localStorage.setItem(STORAGE_KEY, JSON.stringify(saved));
+        } catch (_) {
+          // Keep the quiz usable even when local storage is unavailable.
+        }
+        writeStateToDb(saved).catch(() => {});
+      }
+
+      function setKeyState(note, state) {
+        const key = keyboard.querySelector(`[data-note="${CSS.escape(note)}"]`);
+        if (key) key.classList.add(state);
+      }
+
+      function resetKeys() {
+        keyboard.querySelectorAll("button").forEach(key => key.classList.remove("correct", "wrong", "hint"));
+      }
+
+      function pressKey(pressedKey) {
+        if (!currentNote || feedbackType === "correct") return;
+        const answer = expectedKey();
+        const previouslyWrong = feedbackType === "wrong";
+        resetKeys();
+
+        if (pressedKey === answer) {
+          setKeyState(pressedKey, "correct");
+          showFeedback("正确!", "correct");
+          feedbackType = "correct";
+          if (!previouslyWrong) {
+            score.correct += 1;
+            score.total += 1;
+            updateScore();
+            saveState();
+          }
+          clearAdvanceTimer();
+          advanceTimer = setTimeout(() => {
+            advanceTimer = null;
+            generateQuestion();
+          }, 1000);
+        } else {
+          if (!previouslyWrong) {
+            score.total += 1;
+            updateScore();
+            saveState();
+          }
+          setKeyState(pressedKey, "wrong");
+          setKeyState(answer, "hint");
+          showFeedback(`提示: 正确答案是 ${answer}`, "wrong");
+          feedbackType = "wrong";
+        }
+      }
+
+      function drawStaff() {
+        staff.replaceChildren();
+        staff.append(svg("rect", { width:300, height:120, fill:"transparent" }));
+        const group = svg("g", { transform:"translate(0,60)" });
+        staff.append(group);
+
+        [-24,-12,0,12,24].forEach(y => {
+          group.append(svg("line", {
+            x1:18, y1:y, x2:282, y2:y, stroke:"hsl(20 20% 15%)",
+            "stroke-width":.9, "stroke-opacity":.45
+          }));
+        });
+
+        group.append(svg("text", {
+          x:28, y:clef === "treble" ? 24 : 8,
+          "font-size":clef === "treble" ? 56 : 40,
+          "font-family":"serif", fill:"hsl(20 25% 25%)", "text-anchor":"middle"
+        }, clef === "treble" ? "𝄞" : "𝄢"));
+
+        KEY_SIGNATURES[keySig].accidentals.forEach(([letter, type], index) => {
+          const staffY = ACC_Y[type][clef][letter] || 0;
+          group.append(svg("text", {
+            x:60 + index * 9,
+            y:staffY + (type === "sharp" ? 5.76 : 2.7),
+            "font-size":18, "font-family":"serif",
+            fill:"hsl(20 20% 15%)", "text-anchor":"middle"
+          }, type === "sharp" ? "♯" : "♭"));
+        });
+
+        if (!currentNote) return;
+        const noteGroup = svg("g", { transform:`translate(170, ${-currentNote[2] * 6})` });
+        group.append(noteGroup);
+        if (Math.abs(currentNote[2]) >= 6) {
+          noteGroup.append(svg("line", {
+            x1:-10, y1:0, x2:10, y2:0, stroke:"hsl(20 20% 15%)",
+            "stroke-width":1.2, "stroke-opacity":.5
+          }));
+        }
+        noteGroup.append(svg("ellipse", {
+          cx:0, cy:0, rx:currentNoteLabel() ? 9 : 6.5, ry:currentNoteLabel() ? 6 : 4.5,
+          fill:"hsl(20 25% 25%)", transform:"rotate(-12)"
+        }));
+        const label = currentNoteLabel();
+        if (label) {
+          noteGroup.append(svg("text", {
+            x:0, y:2.4,
+            "font-size":label.length > 1 ? 6 : 7,
+            "font-family":"ui-monospace, SFMono-Regular, Menlo, monospace",
+            "font-weight":800,
+            fill:"#fff",
+            "text-anchor":"middle",
+            "pointer-events":"none"
+          }, label));
+        }
+        const stemUp = currentNote[2] < 0;
+        noteGroup.append(svg("line", {
+          x1:stemUp ? 5.5 : -5.5, y1:stemUp ? -1 : 1,
+          x2:stemUp ? 5.5 : -5.5, y2:stemUp ? -28 : 28,
+          stroke:"hsl(20 25% 25%)", "stroke-width":1.4
+        }));
+      }
+
+      function blackLabel(sharpName) {
+        if (!(keySig.includes("b") || keySig === "F")) return sharpName;
+        return { "C#":"Db", "D#":"Eb", "F#":"Gb", "G#":"Ab", "A#":"Bb" }[sharpName];
+      }
+
+      function makeKey(note, isBlack, left) {
+        const button = document.createElement("button");
+        button.type = "button";
+        button.className = isBlack ? "black-key" : "white-key";
+        button.dataset.note = note;
+        button.style.left = `${left}px`;
+        button.setAttribute("aria-label", note);
+        button.textContent = isBlack ? "" : note;
+        button.addEventListener("click", () => pressKey(note));
+        return button;
+      }
+
+      function drawKeyboard() {
+        const whites = ["C","D","E","F","G","A","B"];
+        const blacks = { C:"C#", D:"D#", F:"F#", G:"G#", A:"A#" };
+        keyboard.replaceChildren();
+        whites.forEach((note, index) => keyboard.append(makeKey(note, false, index * 48)));
+        whites.forEach((note, index) => {
+          if (blacks[note]) keyboard.append(makeKey(blackLabel(blacks[note]), true, index * 48 + 32));
+        });
+      }
+
+      Object.entries(KEY_SIGNATURES).forEach(([value, definition]) => {
+        const option = document.createElement("option");
+        option.value = value;
+        option.textContent = definition.name;
+        keySelect.append(option);
+      });
+
+      keySelect.addEventListener("change", () => {
+        keySig = keySelect.value;
+        saveState();
+        drawKeyboard();
+        generateQuestion();
+      });
+
+      function setClef(nextClef) {
+        clef = nextClef;
+        trebleButton.classList.toggle("active", clef === "treble");
+        bassButton.classList.toggle("active", clef === "bass");
+        trebleButton.setAttribute("aria-pressed", clef === "treble");
+        bassButton.setAttribute("aria-pressed", clef === "bass");
+        saveState();
+        generateQuestion();
+      }
+
+      trebleButton.addEventListener("click", () => setClef("treble"));
+      bassButton.addEventListener("click", () => setClef("bass"));
+      noteLabelInputs.forEach(input => {
+        input.addEventListener("change", () => {
+          noteLabelMode = input.value;
+          saveState();
+          drawStaff();
+        });
+      });
+      nextButton.addEventListener("click", generateQuestion);
+
+      refreshSavedSettings();
+      restoreIndexedDbState();
+    })();
+  </script>
+</body>
+</html>
