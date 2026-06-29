@@ -485,26 +485,34 @@
         const play = () => {
           if (context.state !== "running") return;
           const now = context.currentTime;
+          const instrument = {
+            wave:"sine",
+            partials:[1, 4.03],
+            levels:[1, 0.3],
+            attack:0.004,
+            decay:3,
+            brightness:5200
+          };
           const master = context.createGain();
+          const filter = context.createBiquadFilter();
+          filter.type = "lowpass";
+          filter.frequency.setValueAtTime(instrument.brightness, now);
+          filter.Q.value = 1.8;
+          master.connect(filter);
+          filter.connect(context.destination);
           master.gain.setValueAtTime(0.0001, now);
-          master.gain.exponentialRampToValueAtTime(0.24, now + 0.012);
-          master.gain.exponentialRampToValueAtTime(0.0001, now + 1.65);
-          master.connect(context.destination);
+          master.gain.linearRampToValueAtTime(0.33, now + instrument.attack);
+          master.gain.exponentialRampToValueAtTime(0.0001, now + instrument.decay);
 
-          [
-            { ratio:1, gain:0.9, type:"sine" },
-            { ratio:2, gain:0.32, type:"triangle" },
-            { ratio:3, gain:0.12, type:"sine" }
-          ].forEach(({ ratio, gain:partialGain, type }, index) => {
+          instrument.partials.forEach((partial, index) => {
             const oscillator = context.createOscillator();
-            const partial = context.createGain();
-            oscillator.type = type;
-            oscillator.frequency.setValueAtTime(frequency * ratio, now);
-            partial.gain.setValueAtTime(partialGain, now);
-            partial.gain.exponentialRampToValueAtTime(0.0001, now + (index === 0 ? 1.45 : 0.55));
-            oscillator.connect(partial).connect(master);
+            const partialGain = context.createGain();
+            oscillator.type = instrument.wave;
+            oscillator.frequency.setValueAtTime(frequency * partial, now);
+            partialGain.gain.value = instrument.levels[index] || 0.1;
+            oscillator.connect(partialGain).connect(master);
             oscillator.start(now);
-            oscillator.stop(now + 1.7);
+            oscillator.stop(now + instrument.decay + 0.08);
           });
         };
 
