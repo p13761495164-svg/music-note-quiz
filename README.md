@@ -2,6 +2,10 @@
 
 Music Note Quiz is a small offline note-reading practice app.
 
+Live app:
+
+https://p13761495164-svg.github.io/music-note-quiz/
+
 It includes:
 
 - `web/` - standalone HTML version
