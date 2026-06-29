@@ -485,16 +485,27 @@
         const play = () => {
           if (context.state !== "running") return;
           const now = context.currentTime;
-          const oscillator = context.createOscillator();
-          const gain = context.createGain();
-          oscillator.type = "sine";
-          oscillator.frequency.setValueAtTime(frequency, now);
-          gain.gain.setValueAtTime(0.0001, now);
-          gain.gain.exponentialRampToValueAtTime(0.18, now + 0.025);
-          gain.gain.exponentialRampToValueAtTime(0.0001, now + 0.48);
-          oscillator.connect(gain).connect(context.destination);
-          oscillator.start(now);
-          oscillator.stop(now + 0.52);
+          const master = context.createGain();
+          master.gain.setValueAtTime(0.0001, now);
+          master.gain.exponentialRampToValueAtTime(0.24, now + 0.012);
+          master.gain.exponentialRampToValueAtTime(0.0001, now + 1.65);
+          master.connect(context.destination);
+
+          [
+            { ratio:1, gain:0.9, type:"sine" },
+            { ratio:2, gain:0.32, type:"triangle" },
+            { ratio:3, gain:0.12, type:"sine" }
+          ].forEach(({ ratio, gain:partialGain, type }, index) => {
+            const oscillator = context.createOscillator();
+            const partial = context.createGain();
+            oscillator.type = type;
+            oscillator.frequency.setValueAtTime(frequency * ratio, now);
+            partial.gain.setValueAtTime(partialGain, now);
+            partial.gain.exponentialRampToValueAtTime(0.0001, now + (index === 0 ? 1.45 : 0.55));
+            oscillator.connect(partial).connect(master);
+            oscillator.start(now);
+            oscillator.stop(now + 1.7);
+          });
         };
 
         if (context.state === "suspended") {
@@ -691,14 +702,14 @@
           }));
         }
         noteGroup.append(svg("ellipse", {
-          cx:0, cy:0, rx:6.5, ry:4.5,
+          cx:0, cy:0, rx:8.5, ry:5.9,
           fill:"hsl(20 25% 25%)", transform:"rotate(-12)"
         }));
         const label = currentNoteLabel();
         if (label) {
           noteGroup.append(svg("text", {
-            x:0, y:1.7,
-            "font-size":label.length > 1 ? 4.9 : 5.8,
+            x:0, y:2.2,
+            "font-size":label.length > 1 ? 6.2 : 7.3,
             "font-family":"ui-monospace, SFMono-Regular, Menlo, monospace",
             "font-weight":800,
             fill:"#fff",
@@ -708,8 +719,8 @@
         }
         const stemUp = currentNote[2] < 0;
         noteGroup.append(svg("line", {
-          x1:stemUp ? 5.5 : -5.5, y1:stemUp ? -1 : 1,
-          x2:stemUp ? 5.5 : -5.5, y2:stemUp ? -28 : 28,
+          x1:stemUp ? 7.2 : -7.2, y1:stemUp ? -1.2 : 1.2,
+          x2:stemUp ? 7.2 : -7.2, y2:stemUp ? -30 : 30,
           stroke:"hsl(20 25% 25%)", "stroke-width":1.4
         }));
       }
