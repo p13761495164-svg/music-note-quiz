@@ -468,18 +468,12 @@
         return audioContext;
       }
 
-      function currentNoteMidi() {
+      function currentNoteFrequency() {
         if (!currentNote) return null;
         const basePitch = { C:0, D:2, E:4, F:5, G:7, A:9, B:11 }[currentNote[0]];
         const accidental = expectedKey().slice(1);
         const offset = accidental === "#" ? 1 : accidental === "b" ? -1 : 0;
-        return (currentNote[1] + 1) * 12 + basePitch + offset;
-      }
-
-      function currentNoteFrequency() {
-        const midi = currentNoteMidi();
-        if (midi === null) return null;
-        // International scientific pitch: A4 is MIDI 69 at 440Hz; C4 is middle C.
+        const midi = (currentNote[1] + 1) * 12 + basePitch + offset;
         return 440 * Math.pow(2, (midi - 69) / 12);
       }
 
@@ -493,11 +487,11 @@
           const now = context.currentTime;
           const instrument = {
             wave:"sine",
-            partials:[1, 2, 4.03],
-            levels:[1, 0.055, 0.035],
+            partials:[1, 4.03],
+            levels:[1, 0.3],
             attack:0.004,
-            decay:2.6,
-            brightness:3600
+            decay:3,
+            brightness:5200
           };
           const master = context.createGain();
           const filter = context.createBiquadFilter();
