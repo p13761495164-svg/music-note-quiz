@@ -163,6 +163,11 @@
       background: var(--primary);
       color: var(--bg);
     }
+    .sound-count-group { gap: 3px; }
+    .sound-count-group .radio-choice {
+      min-width: 34px;
+      padding: 0 9px;
+    }
 
     .staff-shell {
       position: relative;
@@ -333,13 +338,13 @@
           </div>
           <label class="setting">
             <span class="setting-label">声音:</span>
-            <select id="sound-count" aria-label="声音个数">
-              <option value="1">1个</option>
-              <option value="2">2个</option>
-              <option value="3">3个</option>
-              <option value="4">4个</option>
-              <option value="5">5个</option>
-            </select>
+            <div class="radio-group sound-count-group" role="radiogroup" aria-label="声音个数">
+              <label class="radio-choice"><input type="radio" name="sound-count" value="1" checked>1</label>
+              <label class="radio-choice"><input type="radio" name="sound-count" value="2">2</label>
+              <label class="radio-choice"><input type="radio" name="sound-count" value="3">3</label>
+              <label class="radio-choice"><input type="radio" name="sound-count" value="4">4</label>
+              <label class="radio-choice"><input type="radio" name="sound-count" value="5">5</label>
+            </div>
           </label>
         </div>
 
@@ -448,8 +453,8 @@
       const bassButton = document.querySelector("#bass-button");
       const showStaffButton = document.querySelector("#show-staff-button");
       const hideStaffButton = document.querySelector("#hide-staff-button");
-      const soundCountSelect = document.querySelector("#sound-count");
       const noteLabelInputs = [...document.querySelectorAll('input[name="note-label-mode"]')];
+      const soundCountInputs = [...document.querySelectorAll('input[name="sound-count"]')];
       const feedbackPill = document.querySelector("#feedback-pill");
       const nextButton = document.querySelector("#next-button");
       const replayButton = document.querySelector("#replay-button");
@@ -698,8 +703,8 @@
         showStaffButton.setAttribute("aria-pressed", showStaff);
         hideStaffButton.setAttribute("aria-pressed", !showStaff);
         staffShell.classList.toggle("hidden-staff", !showStaff);
-        soundCountSelect.value = String(soundCount);
         noteLabelInputs.forEach(input => { input.checked = input.value === noteLabelMode; });
+        soundCountInputs.forEach(input => { input.checked = Number.parseInt(input.value, 10) === soundCount; });
         updateScore();
         drawKeyboard();
         generateQuestion();
@@ -831,8 +836,9 @@
         });
 
         if (!questionNotes.length) return;
-        const spacing = questionNotes.length === 1 ? 0 : Math.min(42, 142 / (questionNotes.length - 1));
-        const firstX = 170 - spacing * (questionNotes.length - 1) / 2;
+        const spacing = questionNotes.length === 1 ? 0 : Math.min(34, 128 / (questionNotes.length - 1));
+        const noteCenterX = questionNotes.length === 1 ? 170 : 198;
+        const firstX = noteCenterX - spacing * (questionNotes.length - 1) / 2;
 
         questionNotes.forEach((note, index) => {
           const isCurrent = index === currentAnswerIndex;
@@ -944,10 +950,12 @@
           drawStaff();
         });
       });
-      soundCountSelect.addEventListener("change", () => {
-        soundCount = Number.parseInt(soundCountSelect.value, 10) || 1;
-        saveState();
-        generateQuestion();
+      soundCountInputs.forEach(input => {
+        input.addEventListener("change", () => {
+          soundCount = Number.parseInt(input.value, 10) || 1;
+          saveState();
+          generateQuestion();
+        });
       });
       nextButton.addEventListener("click", generateQuestion);
       replayButton.addEventListener("click", playQuestionNotes);
