@@ -331,6 +331,16 @@
               <button id="hide-staff-button" type="button" aria-pressed="false">隐藏</button>
             </div>
           </div>
+          <label class="setting">
+            <span class="setting-label">声音:</span>
+            <select id="sound-count" aria-label="声音个数">
+              <option value="1">1个</option>
+              <option value="2">2个</option>
+              <option value="3">3个</option>
+              <option value="4">4个</option>
+              <option value="5">5个</option>
+            </select>
+          </label>
         </div>
 
         <div id="staff-shell" class="staff-shell">
@@ -400,7 +410,9 @@
       let score = { correct: 0, total: 0 };
       let noteLabelMode = "none";
       let showStaff = true;
+      let soundCount = 1;
       let advanceTimer = null;
+      let soundTimers = [];
       let stateUpdatedAt = 0;
       let audioContext = null;
 
@@ -416,6 +428,9 @@
           noteLabelMode = saved.noteLabelMode;
         }
         if (typeof saved.showStaff === "boolean") showStaff = saved.showStaff;
+        if (Number.isInteger(saved.soundCount) && saved.soundCount >= 1 && saved.soundCount <= 5) {
+          soundCount = saved.soundCount;
+        }
         stateUpdatedAt = Number.isFinite(saved.updatedAt) ? saved.updatedAt : 0;
         return true;
       }
@@ -431,6 +446,7 @@
       const bassButton = document.querySelector("#bass-button");
       const showStaffButton = document.querySelector("#show-staff-button");
       const hideStaffButton = document.querySelector("#hide-staff-button");
+      const soundCountSelect = document.querySelector("#sound-count");
       const noteLabelInputs = [...document.querySelectorAll('input[name="note-label-mode"]')];
       const feedbackPill = document.querySelector("#feedback-pill");
       const nextButton = document.querySelector("#next-button");
@@ -461,8 +477,14 @@
         }
       }
 
+      function clearSoundTimers() {
+        soundTimers.forEach(timer => clearTimeout(timer));
+        soundTimers = [];
+      }
+
       function generateQuestion() {
         clearAdvanceTimer();
+        clearSoundTimers();
         currentNote = randomNote();
         feedbackType = null;
         showFeedback("", null);
@@ -565,11 +587,21 @@
       }
 
       function playCurrentNote() {
-        playTone(currentNoteFrequency());
+        const frequency = currentNoteFrequency();
+        if (!frequency) return;
+        clearSoundTimers();
+        for (let index = 0; index < soundCount; index += 1) {
+          if (index === 0) {
+            playTone(frequency);
+          } else {
+            soundTimers.push(setTimeout(() => playTone(frequency), index * 650));
+          }
+        }
       }
 
       function playPressedKey(noteName) {
         if (!currentNote) return;
+        clearSoundTimers();
         playTone(noteNameFrequency(noteName, currentNote[1]));
       }
 
@@ -642,6 +674,7 @@
         showStaffButton.setAttribute("aria-pressed", showStaff);
         hideStaffButton.setAttribute("aria-pressed", !showStaff);
         staffShell.classList.toggle("hidden-staff", !showStaff);
+        soundCountSelect.value = String(soundCount);
         noteLabelInputs.forEach(input => { input.checked = input.value === noteLabelMode; });
         updateScore();
         drawKeyboard();
@@ -674,6 +707,7 @@
           total: score.total,
           noteLabelMode,
           showStaff,
+          soundCount,
           updatedAt: stateUpdatedAt
         };
         try {
@@ -862,6 +896,11 @@
           saveState();
           drawStaff();
         });
+      });
+      soundCountSelect.addEventListener("change", () => {
+        soundCount = Number.parseInt(soundCountSelect.value, 10) || 1;
+        saveState();
+        playCurrentNote();
       });
       nextButton.addEventListener("click", generateQuestion);
       replayButton.addEventListener("click", playCurrentNote);
