@@ -405,6 +405,8 @@
 
       let clef = "treble";
       let keySig = "C";
+      let questionNotes = [];
+      let currentAnswerIndex = 0;
       let currentNote = null;
       let feedbackType = null;
       let score = { correct: 0, total: 0 };
@@ -462,12 +464,20 @@
         return node;
       }
 
-      function randomNote() {
+      function randomNote(excluded = []) {
         const notes = (clef === "treble" ? TREBLE_NOTES : BASS_NOTES).slice(1, -1);
-        const candidates = currentNote
-          ? notes.filter(n => !(n[0] === currentNote[0] && n[1] === currentNote[1]))
-          : notes;
+        const candidates = notes.filter(note => !excluded.some(item => item[0] === note[0] && item[1] === note[1]));
         return candidates[Math.floor(Math.random() * candidates.length)];
+      }
+
+      function generateQuestionNotes() {
+        const notes = [];
+        while (notes.length < soundCount) {
+          const note = randomNote(notes);
+          if (!note) break;
+          notes.push(note);
+        }
+        return notes;
       }
 
       function clearAdvanceTimer() {
@@ -485,18 +495,21 @@
       function generateQuestion() {
         clearAdvanceTimer();
         clearSoundTimers();
-        currentNote = randomNote();
+        questionNotes = generateQuestionNotes();
+        currentAnswerIndex = 0;
+        currentNote = questionNotes[currentAnswerIndex] || null;
         feedbackType = null;
         showFeedback("", null);
         resetKeys();
         drawStaff();
-        playCurrentNote();
+        playQuestionNotes();
       }
 
-      function expectedKey() {
-        const accidental = KEY_SIGNATURES[keySig].accidentals.find(item => item[0] === currentNote[0]);
-        if (!accidental) return currentNote[0];
-        return currentNote[0] + (accidental[1] === "sharp" ? "#" : "b");
+      function expectedKey(note = currentNote) {
+        if (!note) return "";
+        const accidental = KEY_SIGNATURES[keySig].accidentals.find(item => item[0] === note[0]);
+        if (!accidental) return note[0];
+        return note[0] + (accidental[1] === "sharp" ? "#" : "b");
       }
 
       function pitchClass(note) {
@@ -507,11 +520,11 @@
         return base;
       }
 
-      function noteDegreeLabel() {
+      function noteDegreeLabel(note = currentNote) {
         const tonic = pitchClass(keySig);
-        const note = pitchClass(expectedKey());
+        const notePitch = pitchClass(expectedKey(note));
         const majorScale = [0, 2, 4, 5, 7, 9, 11];
-        const interval = (note - tonic + 12) % 12;
+        const interval = (notePitch - tonic + 12) % 12;
         const degree = majorScale.indexOf(interval);
         return degree >= 0 ? String(degree + 1) : "";
       }
@@ -523,13 +536,17 @@
         return audioContext;
       }
 
-      function currentNoteFrequency() {
-        if (!currentNote) return null;
-        const basePitch = { C:0, D:2, E:4, F:5, G:7, A:9, B:11 }[currentNote[0]];
-        const accidental = expectedKey().slice(1);
+      function noteFrequency(note) {
+        if (!note) return null;
+        const basePitch = { C:0, D:2, E:4, F:5, G:7, A:9, B:11 }[note[0]];
+        const accidental = expectedKey(note).slice(1);
         const offset = accidental === "#" ? 1 : accidental === "b" ? -1 : 0;
-        const midi = (currentNote[1] + 1) * 12 + basePitch + offset;
+        const midi = (note[1] + 1) * 12 + basePitch + offset;
         return 440 * Math.pow(2, (midi - 69) / 12);
+      }
+
+      function currentNoteFrequency() {
+        return noteFrequency(currentNote);
       }
 
       function noteNameFrequency(noteName, octave) {
@@ -590,13 +607,20 @@
         const frequency = currentNoteFrequency();
         if (!frequency) return;
         clearSoundTimers();
-        for (let index = 0; index < soundCount; index += 1) {
+        playTone(frequency);
+      }
+
+      function playQuestionNotes() {
+        const frequencies = questionNotes.map(noteFrequency).filter(Boolean);
+        if (!frequencies.length) return;
+        clearSoundTimers();
+        frequencies.forEach((frequency, index) => {
           if (index === 0) {
             playTone(frequency);
           } else {
             soundTimers.push(setTimeout(() => playTone(frequency), index * 650));
           }
-        }
+        });
       }
 
       function playPressedKey(noteName) {
@@ -608,13 +632,13 @@
       function unlockAudio() {
         const context = getAudioContext();
         if (!context) return;
-        context.resume().then(playCurrentNote).catch(() => {});
+        context.resume().then(playQuestionNotes).catch(() => {});
       }
 
-      function currentNoteLabel() {
-        if (!currentNote || noteLabelMode === "none") return "";
-        if (noteLabelMode === "letter") return expectedKey();
-        return noteDegreeLabel();
+      function currentNoteLabel(note = currentNote) {
+        if (!note || noteLabelMode === "none") return "";
+        if (noteLabelMode === "letter") return expectedKey(note);
+        return noteDegreeLabel(note);
       }
 
       function showFeedback(message, type) {
@@ -730,13 +754,12 @@
       function pressKey(pressedKey) {
         if (!currentNote || feedbackType === "correct") return;
         playPressedKey(pressedKey);
-        const answer = expectedKey();
+        const answer = expectedKey(currentNote);
         const previouslyWrong = feedbackType === "wrong";
         resetKeys();
 
         if (pressedKey === answer) {
           setKeyState(pressedKey, "correct");
-          showFeedback("正确!", "correct");
           feedbackType = "correct";
           if (!previouslyWrong) {
             score.correct += 1;
@@ -745,10 +768,24 @@
             saveState();
           }
           clearAdvanceTimer();
-          advanceTimer = setTimeout(() => {
-            advanceTimer = null;
-            generateQuestion();
-          }, 1000);
+          if (currentAnswerIndex < questionNotes.length - 1) {
+            showFeedback(`正确! ${currentAnswerIndex + 1}/${questionNotes.length}`, "correct");
+            advanceTimer = setTimeout(() => {
+              advanceTimer = null;
+              currentAnswerIndex += 1;
+              currentNote = questionNotes[currentAnswerIndex];
+              feedbackType = null;
+              resetKeys();
+              showFeedback("", null);
+              drawStaff();
+            }, 520);
+          } else {
+            showFeedback("正确!", "correct");
+            advanceTimer = setTimeout(() => {
+              advanceTimer = null;
+              generateQuestion();
+            }, 1000);
+          }
         } else {
           if (!previouslyWrong) {
             score.total += 1;
@@ -757,7 +794,7 @@
           }
           setKeyState(pressedKey, "wrong");
           setKeyState(answer, "hint");
-          showFeedback(`提示: 正确答案是 ${answer}`, "wrong");
+          showFeedback(`提示: 第 ${currentAnswerIndex + 1} 个是 ${answer}`, "wrong");
           feedbackType = "wrong";
         }
       }
@@ -793,37 +830,47 @@
           }, type === "sharp" ? "♯" : "♭"));
         });
 
-        if (!currentNote) return;
-        const noteGroup = svg("g", { transform:`translate(170, ${-currentNote[2] * 6})` });
-        group.append(noteGroup);
-        if (Math.abs(currentNote[2]) >= 6) {
-          noteGroup.append(svg("line", {
-            x1:-10, y1:0, x2:10, y2:0, stroke:"hsl(20 20% 15%)",
-            "stroke-width":1.2, "stroke-opacity":.5
+        if (!questionNotes.length) return;
+        const spacing = questionNotes.length === 1 ? 0 : Math.min(42, 142 / (questionNotes.length - 1));
+        const firstX = 170 - spacing * (questionNotes.length - 1) / 2;
+
+        questionNotes.forEach((note, index) => {
+          const isCurrent = index === currentAnswerIndex;
+          const ink = isCurrent ? "hsl(20 25% 25%)" : "hsl(20 14% 45%)";
+          const noteGroup = svg("g", {
+            transform:`translate(${firstX + index * spacing}, ${-note[2] * 6})`,
+            opacity:isCurrent ? 1 : .58
+          });
+          group.append(noteGroup);
+          if (Math.abs(note[2]) >= 6) {
+            noteGroup.append(svg("line", {
+              x1:-10, y1:0, x2:10, y2:0, stroke:ink,
+              "stroke-width":1.2, "stroke-opacity":.5
+            }));
+          }
+          noteGroup.append(svg("ellipse", {
+            cx:0, cy:0, rx:8.5, ry:5.9,
+            fill:ink, transform:"rotate(-12)"
           }));
-        }
-        noteGroup.append(svg("ellipse", {
-          cx:0, cy:0, rx:8.5, ry:5.9,
-          fill:"hsl(20 25% 25%)", transform:"rotate(-12)"
-        }));
-        const label = currentNoteLabel();
-        if (label) {
-          noteGroup.append(svg("text", {
-            x:0, y:2.2,
-            "font-size":label.length > 1 ? 6.2 : 7.3,
-            "font-family":"ui-monospace, SFMono-Regular, Menlo, monospace",
-            "font-weight":800,
-            fill:"#fff",
-            "text-anchor":"middle",
-            "pointer-events":"none"
-          }, label));
-        }
-        const stemUp = currentNote[2] < 0;
-        noteGroup.append(svg("line", {
-          x1:stemUp ? 7.2 : -7.2, y1:stemUp ? -1.2 : 1.2,
-          x2:stemUp ? 7.2 : -7.2, y2:stemUp ? -30 : 30,
-          stroke:"hsl(20 25% 25%)", "stroke-width":1.4
-        }));
+          const label = currentNoteLabel(note);
+          if (label) {
+            noteGroup.append(svg("text", {
+              x:0, y:2.2,
+              "font-size":label.length > 1 ? 6.2 : 7.3,
+              "font-family":"ui-monospace, SFMono-Regular, Menlo, monospace",
+              "font-weight":800,
+              fill:"#fff",
+              "text-anchor":"middle",
+              "pointer-events":"none"
+            }, label));
+          }
+          const stemUp = note[2] < 0;
+          noteGroup.append(svg("line", {
+            x1:stemUp ? 7.2 : -7.2, y1:stemUp ? -1.2 : 1.2,
+            x2:stemUp ? 7.2 : -7.2, y2:stemUp ? -30 : 30,
+            stroke:ink, "stroke-width":1.4
+          }));
+        });
       }
 
       function blackLabel(sharpName) {
@@ -900,10 +947,10 @@
       soundCountSelect.addEventListener("change", () => {
         soundCount = Number.parseInt(soundCountSelect.value, 10) || 1;
         saveState();
-        playCurrentNote();
+        generateQuestion();
       });
       nextButton.addEventListener("click", generateQuestion);
-      replayButton.addEventListener("click", playCurrentNote);
+      replayButton.addEventListener("click", playQuestionNotes);
       document.addEventListener("pointerdown", unlockAudio, { once:true });
 
       refreshSavedSettings();
