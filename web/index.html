@@ -285,12 +285,13 @@
     .white-key:active, .black-key:active { transform: scaleY(.97); }
     .white-key {
       z-index: 1;
-      width: 48px;
+      width: 32px;
       height: 148px;
       padding-bottom: 14px;
       border: 1px solid #c9c9c9;
       background: #fff;
       color: #5b5b5b;
+      font-size: 15px;
       font-weight: 650;
       box-shadow: 0 2px 3px rgba(0,0,0,.08);
     }
@@ -298,7 +299,7 @@
       z-index: 2;
       top: 0;
       bottom: auto;
-      width: 32px;
+      width: 22px;
       height: 88px;
       padding-bottom: 8px;
       border: 1px solid #171717;
@@ -461,7 +462,9 @@
       const DB_STORE = "state";
       const KEYBOARD_START_OCTAVE = 2;
       const KEYBOARD_OCTAVES = 4;
-      const WHITE_KEY_WIDTH = 48;
+      const WHITE_KEY_WIDTH = 32;
+      const BLACK_KEY_WIDTH = 22;
+      const BLACK_KEY_OFFSET = WHITE_KEY_WIDTH - BLACK_KEY_WIDTH / 2;
       const OCTAVE_WIDTH = WHITE_KEY_WIDTH * 7;
       const MAX_LEDGER_STEP = 8;
 
@@ -1054,7 +1057,7 @@
           const octaveLeft = (octave - KEYBOARD_START_OCTAVE) * OCTAVE_WIDTH;
           whites.forEach((note, index) => keyboard.append(makeKey(note, octave, false, octaveLeft + index * WHITE_KEY_WIDTH)));
           whites.forEach((note, index) => {
-            if (blacks[note]) keyboard.append(makeKey(blackLabel(blacks[note]), octave, true, octaveLeft + index * WHITE_KEY_WIDTH + 32));
+            if (blacks[note]) keyboard.append(makeKey(blackLabel(blacks[note]), octave, true, octaveLeft + index * WHITE_KEY_WIDTH + BLACK_KEY_OFFSET));
           });
         }
         updateKeyboardRange();
