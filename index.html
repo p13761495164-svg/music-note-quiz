@@ -308,6 +308,16 @@
       font-size: 11px;
       box-shadow: 0 3px 5px rgba(0,0,0,.24);
     }
+    .keyboard.large {
+      width: 336px;
+    }
+    .keyboard.large .white-key {
+      width: 48px;
+      font-size: 17px;
+    }
+    .keyboard.large .black-key {
+      width: 32px;
+    }
     .white-key.correct, .black-key.correct { border-color: #1f9d4c; background: #35b95d; color: #fff; }
     .white-key.wrong, .black-key.wrong { border-color: #c63636; background: #e04b4b; color: #fff; }
     .white-key.hint, .black-key.hint { border-color: #d99a14; background: #f2bd3f; color: #5a3b00; }
@@ -401,6 +411,13 @@
               <button id="hard-button" type="button" aria-pressed="false">难</button>
             </div>
           </div>
+          <div class="setting">
+            <span class="setting-label">琴键:</span>
+            <div class="segmented" role="group" aria-label="琴键大小">
+              <button id="small-keyboard-button" class="active" type="button" aria-pressed="true">小</button>
+              <button id="large-keyboard-button" type="button" aria-pressed="false">大</button>
+            </div>
+          </div>
         </div>
 
         <div id="staff-shell" class="staff-shell">
@@ -466,6 +483,11 @@
       const BLACK_KEY_WIDTH = 22;
       const BLACK_KEY_OFFSET = WHITE_KEY_WIDTH - BLACK_KEY_WIDTH / 2;
       const OCTAVE_WIDTH = WHITE_KEY_WIDTH * 7;
+      const LARGE_KEYBOARD_OCTAVE = 4;
+      const LARGE_WHITE_KEY_WIDTH = 48;
+      const LARGE_BLACK_KEY_WIDTH = 32;
+      const LARGE_BLACK_KEY_OFFSET = LARGE_WHITE_KEY_WIDTH - LARGE_BLACK_KEY_WIDTH / 2;
+      const LARGE_OCTAVE_WIDTH = LARGE_WHITE_KEY_WIDTH * 7;
       const MAX_LEDGER_STEP = 8;
 
       let clef = "treble";
@@ -479,6 +501,7 @@
       let showStaff = true;
       let soundCount = 1;
       let difficulty = "easy";
+      let keyboardMode = "small";
       let advanceTimer = null;
       let soundTimers = [];
       let stateUpdatedAt = 0;
@@ -501,6 +524,7 @@
           soundCount = saved.soundCount;
         }
         if (saved.difficulty === "easy" || saved.difficulty === "hard") difficulty = saved.difficulty;
+        if (saved.keyboardMode === "small" || saved.keyboardMode === "large") keyboardMode = saved.keyboardMode;
         stateUpdatedAt = Number.isFinite(saved.updatedAt) ? saved.updatedAt : 0;
         return true;
       }
@@ -518,6 +542,8 @@
       const hideStaffButton = document.querySelector("#hide-staff-button");
       const easyButton = document.querySelector("#easy-button");
       const hardButton = document.querySelector("#hard-button");
+      const smallKeyboardButton = document.querySelector("#small-keyboard-button");
+      const largeKeyboardButton = document.querySelector("#large-keyboard-button");
       const noteLabelInputs = [...document.querySelectorAll('input[name="note-label-mode"]')];
       const soundCountInputs = [...document.querySelectorAll('input[name="sound-count"]')];
       const feedbackPill = document.querySelector("#feedback-pill");
@@ -670,6 +696,10 @@
         const accidental = expectedKey(note).slice(1);
         const offset = accidental === "#" ? 1 : accidental === "b" ? -1 : 0;
         return (note[1] + 1) * 12 + basePitch + offset;
+      }
+
+      function pitchClassFromMidi(midi) {
+        return ((midi % 12) + 12) % 12;
       }
 
       function midiFrequency(midi) {
@@ -829,6 +859,10 @@
         hardButton.classList.toggle("active", difficulty === "hard");
         easyButton.setAttribute("aria-pressed", difficulty === "easy");
         hardButton.setAttribute("aria-pressed", difficulty === "hard");
+        smallKeyboardButton.classList.toggle("active", keyboardMode === "small");
+        largeKeyboardButton.classList.toggle("active", keyboardMode === "large");
+        smallKeyboardButton.setAttribute("aria-pressed", keyboardMode === "small");
+        largeKeyboardButton.setAttribute("aria-pressed", keyboardMode === "large");
         staffShell.classList.toggle("hidden-staff", !showStaff);
         noteLabelInputs.forEach(input => { input.checked = input.value === noteLabelMode; });
         soundCountInputs.forEach(input => { input.checked = Number.parseInt(input.value, 10) === soundCount; });
@@ -866,6 +900,7 @@
           showStaff,
           soundCount,
           difficulty,
+          keyboardMode,
           updatedAt: stateUpdatedAt
         };
         try {
@@ -877,11 +912,16 @@
       }
 
       function setKeyState(note, state) {
-        const selector = Number.isFinite(note)
-          ? `[data-midi="${note}"]`
-          : `[data-note="${CSS.escape(String(note))}"]`;
-        const key = keyboard.querySelector(selector);
-        if (key) key.classList.add(state);
+        if (keyboardMode === "large" && Number.isFinite(note)) {
+          const pitch = pitchClassFromMidi(note);
+          keyboard.querySelectorAll(`[data-pitch="${pitch}"]`).forEach(key => key.classList.add(state));
+        } else {
+          const selector = Number.isFinite(note)
+            ? `[data-midi="${note}"]`
+            : `[data-note="${CSS.escape(String(note))}"]`;
+          const key = keyboard.querySelector(selector);
+          if (key) key.classList.add(state);
+        }
       }
 
       function resetKeys() {
@@ -895,9 +935,12 @@
         const answerMidi = noteMidi(currentNote);
         const answer = expectedPitchLabel(currentNote);
         const previouslyWrong = feedbackType === "wrong";
+        const isCorrect = keyboardMode === "large"
+          ? pressedMidi !== null && pitchClassFromMidi(pressedMidi) === pitchClassFromMidi(answerMidi)
+          : pressedMidi === answerMidi;
         resetKeys();
 
-        if (pressedMidi === answerMidi) {
+        if (isCorrect) {
           setKeyState(answerMidi, "correct");
           feedbackType = "correct";
           if (!previouslyWrong) {
@@ -1041,6 +1084,7 @@
         button.className = isBlack ? "black-key" : "white-key";
         button.dataset.note = label;
         button.dataset.midi = String(midi);
+        button.dataset.pitch = String(pitchClassFromMidi(midi));
         button.style.left = `${left}px`;
         button.setAttribute("aria-label", label);
         button.textContent = !isBlack && note === "C" ? label : "";
@@ -1051,19 +1095,27 @@
       function drawKeyboard() {
         const whites = ["C","D","E","F","G","A","B"];
         const blacks = { C:"C#", D:"D#", F:"F#", G:"G#", A:"A#" };
-        keyboard.style.width = `${OCTAVE_WIDTH * KEYBOARD_OCTAVES}px`;
+        const isLargeKeyboard = keyboardMode === "large";
+        const firstOctave = isLargeKeyboard ? LARGE_KEYBOARD_OCTAVE : KEYBOARD_START_OCTAVE;
+        const octaveCount = isLargeKeyboard ? 1 : KEYBOARD_OCTAVES;
+        const whiteWidth = isLargeKeyboard ? LARGE_WHITE_KEY_WIDTH : WHITE_KEY_WIDTH;
+        const octaveWidth = isLargeKeyboard ? LARGE_OCTAVE_WIDTH : OCTAVE_WIDTH;
+        const blackOffset = isLargeKeyboard ? LARGE_BLACK_KEY_OFFSET : BLACK_KEY_OFFSET;
+        keyboard.classList.toggle("large", isLargeKeyboard);
+        keyboard.style.width = `${octaveWidth * octaveCount}px`;
         keyboard.replaceChildren();
-        for (let octave = KEYBOARD_START_OCTAVE; octave < KEYBOARD_START_OCTAVE + KEYBOARD_OCTAVES; octave += 1) {
-          const octaveLeft = (octave - KEYBOARD_START_OCTAVE) * OCTAVE_WIDTH;
-          whites.forEach((note, index) => keyboard.append(makeKey(note, octave, false, octaveLeft + index * WHITE_KEY_WIDTH)));
+        for (let octave = firstOctave; octave < firstOctave + octaveCount; octave += 1) {
+          const octaveLeft = (octave - firstOctave) * octaveWidth;
+          whites.forEach((note, index) => keyboard.append(makeKey(note, octave, false, octaveLeft + index * whiteWidth)));
           whites.forEach((note, index) => {
-            if (blacks[note]) keyboard.append(makeKey(blackLabel(blacks[note]), octave, true, octaveLeft + index * WHITE_KEY_WIDTH + BLACK_KEY_OFFSET));
+            if (blacks[note]) keyboard.append(makeKey(blackLabel(blacks[note]), octave, true, octaveLeft + index * whiteWidth + blackOffset));
           });
         }
         updateKeyboardRange();
       }
 
       function updateKeyboardRange() {
+        if (keyboardMode === "large") return;
         const octave = keyboardDisplayOctave;
         keyboardRange.textContent = `C${octave}-B${octave}`;
         keyboardLeftButton.disabled = octave <= KEYBOARD_START_OCTAVE;
@@ -1071,6 +1123,11 @@
       }
 
       function scrollKeyboardToOctave(octave, behavior = "smooth") {
+        if (keyboardMode === "large") {
+          keyboardDisplayOctave = LARGE_KEYBOARD_OCTAVE;
+          keyboardScroll.scrollTo({ left:0, behavior });
+          return;
+        }
         const targetOctave = Math.min(KEYBOARD_START_OCTAVE + KEYBOARD_OCTAVES - 1, Math.max(KEYBOARD_START_OCTAVE, octave));
         keyboardDisplayOctave = targetOctave;
         updateKeyboardRange();
@@ -1136,6 +1193,19 @@
       }
       easyButton.addEventListener("click", () => setDifficulty("easy"));
       hardButton.addEventListener("click", () => setDifficulty("hard"));
+      function setKeyboardMode(nextMode) {
+        keyboardMode = nextMode;
+        smallKeyboardButton.classList.toggle("active", keyboardMode === "small");
+        largeKeyboardButton.classList.toggle("active", keyboardMode === "large");
+        smallKeyboardButton.setAttribute("aria-pressed", keyboardMode === "small");
+        largeKeyboardButton.setAttribute("aria-pressed", keyboardMode === "large");
+        saveState();
+        drawKeyboard();
+        scrollKeyboardToOctave(defaultKeyboardOctave(), "auto");
+        resetKeys();
+      }
+      smallKeyboardButton.addEventListener("click", () => setKeyboardMode("small"));
+      largeKeyboardButton.addEventListener("click", () => setKeyboardMode("large"));
       noteLabelInputs.forEach(input => {
         input.addEventListener("change", () => {
           noteLabelMode = input.value;
