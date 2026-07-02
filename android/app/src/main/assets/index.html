@@ -76,7 +76,7 @@
       display: flex;
       flex-direction: column;
       align-items: center;
-      gap: 18px;
+      gap: 12px;
       padding: 24px;
     }
 
@@ -200,10 +200,13 @@
     .staff-shell.hidden-staff .replay-button { display: inline-flex; align-items: center; justify-content: center; }
 
     .feedback {
-      height: 24px;
+      height: 0;
       display: grid;
       place-items: center;
-      margin: -8px 0 -12px;
+      margin: -6px 0 -8px;
+      overflow: visible;
+      position: relative;
+      z-index: 3;
     }
     .feedback-pill {
       display: none;
@@ -223,13 +226,13 @@
     .keyboard-scroll {
       width: 100%;
       overflow-x: auto;
-      padding: 8px 0 4px;
+      padding: 0 0 4px;
       scroll-behavior: smooth;
     }
     .keyboard {
       position: relative;
       width: 1344px;
-      height: 160px;
+      height: 148px;
       margin: 0 auto;
       user-select: none;
     }
@@ -239,8 +242,10 @@
       align-items: center;
       justify-content: space-between;
       gap: 10px;
-      margin-top: -4px;
-      margin-bottom: -16px;
+      margin-top: -8px;
+      margin-bottom: -28px;
+      position: relative;
+      z-index: 4;
     }
     .keyboard-shift {
       min-width: 44px;
@@ -274,8 +279,8 @@
     .white-key {
       z-index: 1;
       width: 48px;
-      height: 160px;
-      padding-bottom: 16px;
+      height: 148px;
+      padding-bottom: 14px;
       border: 1px solid #c9c9c9;
       background: #fff;
       color: #5b5b5b;
@@ -287,7 +292,7 @@
       top: 0;
       bottom: auto;
       width: 32px;
-      height: 96px;
+      height: 88px;
       padding-bottom: 8px;
       border: 1px solid #171717;
       background: #202020;
@@ -315,7 +320,7 @@
       main { display: block; padding: 10px 0 0; }
       .card { min-height: 100dvh; border: 0; border-radius: 0; box-shadow: none; }
       header, .content { padding: 18px; }
-      .content { gap: 14px; }
+      .content { gap: 10px; }
       .settings { align-items: stretch; }
       .setting { flex: 1 1 220px; justify-content: space-between; }
       .keyboard { margin-inline: 18px; }
@@ -375,6 +380,13 @@
               <label class="radio-choice"><input type="radio" name="sound-count" value="5">5</label>
             </div>
           </label>
+          <div class="setting">
+            <span class="setting-label">难度:</span>
+            <div class="segmented" role="group" aria-label="难度">
+              <button id="easy-button" class="active" type="button" aria-pressed="true">易</button>
+              <button id="hard-button" type="button" aria-pressed="false">难</button>
+            </div>
+          </div>
         </div>
 
         <div id="staff-shell" class="staff-shell">
@@ -456,6 +468,7 @@
       let noteLabelMode = "none";
       let showStaff = true;
       let soundCount = 1;
+      let difficulty = "easy";
       let advanceTimer = null;
       let soundTimers = [];
       let stateUpdatedAt = 0;
@@ -477,6 +490,7 @@
         if (Number.isInteger(saved.soundCount) && saved.soundCount >= 1 && saved.soundCount <= 5) {
           soundCount = saved.soundCount;
         }
+        if (saved.difficulty === "easy" || saved.difficulty === "hard") difficulty = saved.difficulty;
         stateUpdatedAt = Number.isFinite(saved.updatedAt) ? saved.updatedAt : 0;
         return true;
       }
@@ -492,6 +506,8 @@
       const bassButton = document.querySelector("#bass-button");
       const showStaffButton = document.querySelector("#show-staff-button");
       const hideStaffButton = document.querySelector("#hide-staff-button");
+      const easyButton = document.querySelector("#easy-button");
+      const hardButton = document.querySelector("#hard-button");
       const noteLabelInputs = [...document.querySelectorAll('input[name="note-label-mode"]')];
       const soundCountInputs = [...document.querySelectorAll('input[name="sound-count"]')];
       const feedbackPill = document.querySelector("#feedback-pill");
@@ -512,13 +528,33 @@
         return node;
       }
 
+      function availableQuestionNotes() {
+        return (clef === "treble" ? TREBLE_NOTES : BASS_NOTES).slice(1, -1);
+      }
+
       function randomNote(excluded = []) {
-        const notes = (clef === "treble" ? TREBLE_NOTES : BASS_NOTES).slice(1, -1);
+        const notes = availableQuestionNotes();
         const candidates = notes.filter(note => !excluded.some(item => item[0] === note[0] && item[1] === note[1]));
         return candidates[Math.floor(Math.random() * candidates.length)];
       }
 
       function generateQuestionNotes() {
+        if (difficulty === "easy" && soundCount > 1) {
+          const candidates = availableQuestionNotes();
+          for (let attempt = 0; attempt < 300; attempt += 1) {
+            const notes = [];
+            while (notes.length < soundCount) {
+              const possible = candidates.filter(note => {
+                if (notes.some(item => item[0] === note[0] && item[1] === note[1])) return false;
+                const midiValues = notes.concat([note]).map(noteMidi);
+                return Math.max(...midiValues) - Math.min(...midiValues) <= 12;
+              });
+              if (!possible.length) break;
+              notes.push(possible[Math.floor(Math.random() * possible.length)]);
+            }
+            if (notes.length === soundCount) return notes;
+          }
+        }
         const notes = [];
         while (notes.length < soundCount) {
           const note = randomNote(notes);
@@ -764,6 +800,10 @@
         hideStaffButton.classList.toggle("active", !showStaff);
         showStaffButton.setAttribute("aria-pressed", showStaff);
         hideStaffButton.setAttribute("aria-pressed", !showStaff);
+        easyButton.classList.toggle("active", difficulty === "easy");
+        hardButton.classList.toggle("active", difficulty === "hard");
+        easyButton.setAttribute("aria-pressed", difficulty === "easy");
+        hardButton.setAttribute("aria-pressed", difficulty === "hard");
         staffShell.classList.toggle("hidden-staff", !showStaff);
         noteLabelInputs.forEach(input => { input.checked = input.value === noteLabelMode; });
         soundCountInputs.forEach(input => { input.checked = Number.parseInt(input.value, 10) === soundCount; });
@@ -800,6 +840,7 @@
           noteLabelMode,
           showStaff,
           soundCount,
+          difficulty,
           updatedAt: stateUpdatedAt
         };
         try {
@@ -1044,6 +1085,17 @@
       }
       showStaffButton.addEventListener("click", () => setStaffVisibility(true));
       hideStaffButton.addEventListener("click", () => setStaffVisibility(false));
+      function setDifficulty(nextDifficulty) {
+        difficulty = nextDifficulty;
+        easyButton.classList.toggle("active", difficulty === "easy");
+        hardButton.classList.toggle("active", difficulty === "hard");
+        easyButton.setAttribute("aria-pressed", difficulty === "easy");
+        hardButton.setAttribute("aria-pressed", difficulty === "hard");
+        saveState();
+        generateQuestion();
+      }
+      easyButton.addEventListener("click", () => setDifficulty("easy"));
+      hardButton.addEventListener("click", () => setDifficulty("hard"));
       noteLabelInputs.forEach(input => {
         input.addEventListener("change", () => {
           noteLabelMode = input.value;
