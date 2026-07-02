@@ -463,6 +463,7 @@
       const KEYBOARD_OCTAVES = 4;
       const WHITE_KEY_WIDTH = 48;
       const OCTAVE_WIDTH = WHITE_KEY_WIDTH * 7;
+      const MAX_LEDGER_STEP = 8;
 
       let clef = "treble";
       let keySig = "C";
@@ -537,7 +538,10 @@
       function availableQuestionNotes() {
         const notes = [];
         for (let octave = KEYBOARD_START_OCTAVE; octave < KEYBOARD_START_OCTAVE + KEYBOARD_OCTAVES; octave += 1) {
-          NOTE_LETTERS.forEach(letter => notes.push([letter, octave, staffStep(letter, octave, clef)]));
+          NOTE_LETTERS.forEach(letter => {
+            const step = staffStep(letter, octave, clef);
+            if (Math.abs(step) <= MAX_LEDGER_STEP) notes.push([letter, octave, step]);
+          });
         }
         return notes;
       }
