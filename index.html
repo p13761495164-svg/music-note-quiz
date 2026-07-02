@@ -242,8 +242,8 @@
       align-items: center;
       justify-content: space-between;
       gap: 10px;
-      margin-top: -8px;
-      margin-bottom: -28px;
+      margin-top: -4px;
+      margin-bottom: -18px;
       position: relative;
       z-index: 4;
     }
@@ -321,8 +321,47 @@
       .card { min-height: 100dvh; border: 0; border-radius: 0; box-shadow: none; }
       header, .content { padding: 18px; }
       .content { gap: 10px; }
-      .settings { align-items: stretch; }
-      .setting { flex: 1 1 220px; justify-content: space-between; }
+      .settings {
+        display: grid;
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+        align-items: stretch;
+        gap: 8px;
+        padding: 10px;
+      }
+      .setting {
+        min-width: 0;
+        display: grid;
+        align-content: start;
+        gap: 5px;
+      }
+      .setting-label {
+        width: auto;
+        font-size: 12px;
+        line-height: 1.1;
+      }
+      select {
+        width: 100%;
+        min-height: 34px;
+        padding: 0 8px;
+      }
+      .segmented,
+      .radio-group {
+        width: 100%;
+        gap: 2px;
+        padding: 3px;
+      }
+      .segmented button,
+      .radio-choice {
+        flex: 1 1 0;
+        min-width: 0;
+        min-height: 30px;
+        padding: 0 5px;
+        font-size: 14px;
+      }
+      .sound-count-group .radio-choice {
+        min-width: 0;
+        padding: 0 2px;
+      }
       .keyboard { margin-inline: 18px; }
       .keyboard-controls { width: calc(100% - 36px); }
     }
