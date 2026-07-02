@@ -246,11 +246,10 @@
     }
     .keyboard-controls {
       width: min(448px, 100%);
-      display: flex;
+      display: none;
       align-items: center;
       justify-content: center;
-      margin-top: -4px;
-      margin-bottom: -12px;
+      margin: 0;
       position: relative;
       z-index: 4;
     }
@@ -445,14 +444,7 @@
         Db: { name: "Db大调", accidentals: [["B", "flat"], ["E", "flat"], ["A", "flat"], ["D", "flat"], ["G", "flat"]] }
       };
 
-      const TREBLE_NOTES = [
-        ["C",4,-6],["D",4,-5],["E",4,-4],["F",4,-3],["G",4,-2],["A",4,-1],
-        ["B",4,0],["C",5,1],["D",5,2],["E",5,3],["F",5,4],["G",5,5],["A",5,6]
-      ];
-      const BASS_NOTES = [
-        ["E",2,-6],["F",2,-5],["G",2,-4],["A",2,-3],["B",2,-2],["C",3,-1],
-        ["D",3,0],["E",3,1],["F",3,2],["G",3,3],["A",3,4],["B",3,5],["C",4,6]
-      ];
+      const NOTE_LETTERS = ["C", "D", "E", "F", "G", "A", "B"];
       const ACC_Y = {
         sharp: {
           treble: { F:-24, C:-6, G:-30, D:-12, A:6, E:-18 },
@@ -543,7 +535,11 @@
       }
 
       function availableQuestionNotes() {
-        return (clef === "treble" ? TREBLE_NOTES : BASS_NOTES).slice(1, -1);
+        const notes = [];
+        for (let octave = KEYBOARD_START_OCTAVE; octave < KEYBOARD_START_OCTAVE + KEYBOARD_OCTAVES; octave += 1) {
+          NOTE_LETTERS.forEach(letter => notes.push([letter, octave, staffStep(letter, octave, clef)]));
+        }
+        return notes;
       }
 
       function randomNote(excluded = []) {
@@ -616,6 +612,14 @@
         if (accidental === "#") return (base + 1) % 12;
         if (accidental === "b") return (base + 11) % 12;
         return base;
+      }
+
+      function staffStep(letter, octave, targetClef = clef) {
+        const index = NOTE_LETTERS.indexOf(letter);
+        const absoluteStep = octave * NOTE_LETTERS.length + index;
+        const trebleMiddleLine = 4 * NOTE_LETTERS.length + NOTE_LETTERS.indexOf("B");
+        const bassMiddleLine = 3 * NOTE_LETTERS.length + NOTE_LETTERS.indexOf("D");
+        return absoluteStep - (targetClef === "bass" ? bassMiddleLine : trebleMiddleLine);
       }
 
       function noteDegreeLabel(note = currentNote) {
@@ -931,7 +935,11 @@
         staffShell.classList.toggle("hidden-staff", !showStaff);
         staff.replaceChildren();
         if (!showStaff) return;
-        staff.append(svg("rect", { width:300, height:120, fill:"transparent" }));
+        const noteYValues = questionNotes.map(note => 60 - note[2] * 6);
+        const minY = Math.min(0, ...noteYValues.map(y => y - 38));
+        const maxY = Math.max(120, ...noteYValues.map(y => y + 38));
+        staff.setAttribute("viewBox", `0 ${minY} 300 ${maxY - minY}`);
+        staff.append(svg("rect", { x:0, y:minY, width:300, height:maxY - minY, fill:"transparent" }));
         const group = svg("g", { transform:"translate(0,60)" });
         staff.append(group);
 
@@ -971,12 +979,7 @@
             opacity:isCurrent ? 1 : .58
           });
           group.append(noteGroup);
-          if (Math.abs(note[2]) >= 6) {
-            noteGroup.append(svg("line", {
-              x1:-10, y1:0, x2:10, y2:0, stroke:ink,
-              "stroke-width":1.2, "stroke-opacity":.5
-            }));
-          }
+          appendLedgerLines(noteGroup, note[2], ink);
           noteGroup.append(svg("ellipse", {
             cx:0, cy:0, rx:8.5, ry:5.9,
             fill:ink, transform:"rotate(-12)"
@@ -1002,6 +1005,22 @@
         });
       }
 
+      function appendLedgerLines(noteGroup, step, ink) {
+        if (Math.abs(step) < 6) return;
+        const direction = step > 0 ? 1 : -1;
+        for (let ledgerStep = 6 * direction; Math.abs(ledgerStep) <= Math.abs(step); ledgerStep += 2 * direction) {
+          noteGroup.append(svg("line", {
+            x1:-11,
+            y1:(step - ledgerStep) * 6,
+            x2:11,
+            y2:(step - ledgerStep) * 6,
+            stroke:ink,
+            "stroke-width":1.2,
+            "stroke-opacity":.5
+          }));
+        }
+      }
+
       function blackLabel(sharpName) {
         if (!(keySig.includes("b") || keySig === "F")) return sharpName;
         return { "C#":"Db", "D#":"Eb", "F#":"Gb", "G#":"Ab", "A#":"Bb" }[sharpName];
@@ -1017,7 +1036,7 @@
         button.dataset.midi = String(midi);
         button.style.left = `${left}px`;
         button.setAttribute("aria-label", label);
-        button.textContent = label;
+        button.textContent = isBlack ? "" : label;
         button.addEventListener("click", () => pressKey({ note, octave, midi, label }));
         return button;
       }
