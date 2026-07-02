@@ -1043,7 +1043,7 @@
         button.dataset.midi = String(midi);
         button.style.left = `${left}px`;
         button.setAttribute("aria-label", label);
-        button.textContent = isBlack ? "" : label;
+        button.textContent = !isBlack && note === "C" ? label : "";
         button.addEventListener("click", () => pressKey({ note, octave, midi, label }));
         return button;
       }
