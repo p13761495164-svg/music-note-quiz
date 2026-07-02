@@ -223,13 +223,39 @@
       width: 100%;
       overflow-x: auto;
       padding: 8px 0 4px;
+      scroll-behavior: smooth;
     }
     .keyboard {
       position: relative;
-      width: 336px;
+      width: 1344px;
       height: 160px;
       margin: 0 auto;
       user-select: none;
+    }
+    .keyboard-controls {
+      width: min(448px, 100%);
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 10px;
+      margin-bottom: -18px;
+    }
+    .keyboard-shift {
+      min-width: 44px;
+      min-height: 34px;
+      border: 1px solid var(--border);
+      border-radius: 999px;
+      background: var(--card);
+      color: var(--primary);
+      font-weight: 900;
+      cursor: pointer;
+    }
+    .keyboard-range {
+      color: var(--muted);
+      font-size: 12px;
+      font-weight: 750;
+      letter-spacing: .08em;
+      text-transform: uppercase;
     }
     .white-key, .black-key {
       position: absolute;
@@ -290,7 +316,8 @@
       .content { gap: 22px; }
       .settings { align-items: stretch; }
       .setting { flex: 1 1 220px; justify-content: space-between; }
-      .keyboard { margin-inline: max(0px, calc((100% - 336px) / 2)); }
+      .keyboard { margin-inline: 18px; }
+      .keyboard-controls { width: calc(100% - 36px); }
     }
   </style>
 </head>
@@ -357,7 +384,12 @@
           <div id="feedback-pill" class="feedback-pill"></div>
         </div>
 
-        <div class="keyboard-scroll">
+        <div class="keyboard-controls" aria-label="Keyboard range controls">
+          <button id="keyboard-left" class="keyboard-shift" type="button" aria-label="Lower keyboard range">‹</button>
+          <div id="keyboard-range" class="keyboard-range">C4-B4</div>
+          <button id="keyboard-right" class="keyboard-shift" type="button" aria-label="Higher keyboard range">›</button>
+        </div>
+        <div id="keyboard-scroll" class="keyboard-scroll">
           <div id="keyboard" class="keyboard" aria-label="钢琴键盘"></div>
         </div>
 
@@ -407,6 +439,10 @@
       const STORAGE_KEY = "music-note-quiz-state";
       const DB_NAME = "music-note-quiz";
       const DB_STORE = "state";
+      const KEYBOARD_START_OCTAVE = 2;
+      const KEYBOARD_OCTAVES = 4;
+      const WHITE_KEY_WIDTH = 48;
+      const OCTAVE_WIDTH = WHITE_KEY_WIDTH * 7;
 
       let clef = "treble";
       let keySig = "C";
@@ -422,6 +458,7 @@
       let soundTimers = [];
       let stateUpdatedAt = 0;
       let audioContext = null;
+      let keyboardDisplayOctave = 4;
 
       function applySavedState(saved) {
         if (!saved || typeof saved !== "object") return false;
@@ -459,6 +496,10 @@
       const nextButton = document.querySelector("#next-button");
       const replayButton = document.querySelector("#replay-button");
       const keyboard = document.querySelector("#keyboard");
+      const keyboardScroll = document.querySelector("#keyboard-scroll");
+      const keyboardLeftButton = document.querySelector("#keyboard-left");
+      const keyboardRightButton = document.querySelector("#keyboard-right");
+      const keyboardRange = document.querySelector("#keyboard-range");
       const staff = document.querySelector("#staff");
       const staffShell = document.querySelector("#staff-shell");
 
@@ -542,12 +583,8 @@
       }
 
       function noteFrequency(note) {
-        if (!note) return null;
-        const basePitch = { C:0, D:2, E:4, F:5, G:7, A:9, B:11 }[note[0]];
-        const accidental = expectedKey(note).slice(1);
-        const offset = accidental === "#" ? 1 : accidental === "b" ? -1 : 0;
-        const midi = (note[1] + 1) * 12 + basePitch + offset;
-        return 440 * Math.pow(2, (midi - 69) / 12);
+        const midi = noteMidi(note);
+        return midiFrequency(midi);
       }
 
       function currentNoteFrequency() {
@@ -560,7 +597,26 @@
         const accidental = noteName.slice(1);
         const offset = accidental === "#" ? 1 : accidental === "b" ? -1 : 0;
         const midi = (octave + 1) * 12 + basePitch + offset;
+        return midiFrequency(midi);
+      }
+
+      function noteMidi(note) {
+        if (!note) return null;
+        const basePitch = { C:0, D:2, E:4, F:5, G:7, A:9, B:11 }[note[0]];
+        if (!Number.isFinite(basePitch)) return null;
+        const accidental = expectedKey(note).slice(1);
+        const offset = accidental === "#" ? 1 : accidental === "b" ? -1 : 0;
+        return (note[1] + 1) * 12 + basePitch + offset;
+      }
+
+      function midiFrequency(midi) {
+        if (!Number.isFinite(midi)) return null;
         return 440 * Math.pow(2, (midi - 69) / 12);
+      }
+
+      function expectedPitchLabel(note = currentNote) {
+        if (!note) return "";
+        return `${expectedKey(note)}${note[1]}`;
       }
 
       function playTone(frequency) {
@@ -628,10 +684,14 @@
         });
       }
 
-      function playPressedKey(noteName) {
-        if (!currentNote) return;
+      function playPressedKey(key) {
         clearSoundTimers();
-        playTone(noteNameFrequency(noteName, currentNote[1]));
+        if (typeof key === "object" && Number.isFinite(key.midi)) {
+          playTone(midiFrequency(key.midi));
+          return;
+        }
+        if (!currentNote) return;
+        playTone(noteNameFrequency(String(key || ""), currentNote[1]));
       }
 
       function unlockAudio() {
@@ -707,6 +767,7 @@
         soundCountInputs.forEach(input => { input.checked = Number.parseInt(input.value, 10) === soundCount; });
         updateScore();
         drawKeyboard();
+        scrollKeyboardToOctave(defaultKeyboardOctave(), "auto");
         generateQuestion();
       }
 
@@ -748,7 +809,10 @@
       }
 
       function setKeyState(note, state) {
-        const key = keyboard.querySelector(`[data-note="${CSS.escape(note)}"]`);
+        const selector = Number.isFinite(note)
+          ? `[data-midi="${note}"]`
+          : `[data-note="${CSS.escape(String(note))}"]`;
+        const key = keyboard.querySelector(selector);
         if (key) key.classList.add(state);
       }
 
@@ -759,12 +823,14 @@
       function pressKey(pressedKey) {
         if (!currentNote || feedbackType === "correct") return;
         playPressedKey(pressedKey);
-        const answer = expectedKey(currentNote);
+        const pressedMidi = typeof pressedKey === "object" ? pressedKey.midi : null;
+        const answerMidi = noteMidi(currentNote);
+        const answer = expectedPitchLabel(currentNote);
         const previouslyWrong = feedbackType === "wrong";
         resetKeys();
 
-        if (pressedKey === answer) {
-          setKeyState(pressedKey, "correct");
+        if (pressedMidi === answerMidi) {
+          setKeyState(answerMidi, "correct");
           feedbackType = "correct";
           if (!previouslyWrong) {
             score.correct += 1;
@@ -797,8 +863,8 @@
             updateScore();
             saveState();
           }
-          setKeyState(pressedKey, "wrong");
-          setKeyState(answer, "hint");
+          setKeyState(pressedMidi, "wrong");
+          setKeyState(answerMidi, "hint");
           showFeedback(`提示: 第 ${currentAnswerIndex + 1} 个是 ${answer}`, "wrong");
           feedbackType = "wrong";
         }
@@ -884,26 +950,56 @@
         return { "C#":"Db", "D#":"Eb", "F#":"Gb", "G#":"Ab", "A#":"Bb" }[sharpName];
       }
 
-      function makeKey(note, isBlack, left) {
+      function makeKey(note, octave, isBlack, left) {
+        const label = `${note}${octave}`;
+        const midi = (octave + 1) * 12 + pitchClass(note);
         const button = document.createElement("button");
         button.type = "button";
         button.className = isBlack ? "black-key" : "white-key";
-        button.dataset.note = note;
+        button.dataset.note = label;
+        button.dataset.midi = String(midi);
         button.style.left = `${left}px`;
-        button.setAttribute("aria-label", note);
-        button.textContent = isBlack ? "" : note;
-        button.addEventListener("click", () => pressKey(note));
+        button.setAttribute("aria-label", label);
+        button.textContent = label;
+        button.addEventListener("click", () => pressKey({ note, octave, midi, label }));
         return button;
       }
 
       function drawKeyboard() {
         const whites = ["C","D","E","F","G","A","B"];
         const blacks = { C:"C#", D:"D#", F:"F#", G:"G#", A:"A#" };
+        keyboard.style.width = `${OCTAVE_WIDTH * KEYBOARD_OCTAVES}px`;
         keyboard.replaceChildren();
-        whites.forEach((note, index) => keyboard.append(makeKey(note, false, index * 48)));
-        whites.forEach((note, index) => {
-          if (blacks[note]) keyboard.append(makeKey(blackLabel(blacks[note]), true, index * 48 + 32));
-        });
+        for (let octave = KEYBOARD_START_OCTAVE; octave < KEYBOARD_START_OCTAVE + KEYBOARD_OCTAVES; octave += 1) {
+          const octaveLeft = (octave - KEYBOARD_START_OCTAVE) * OCTAVE_WIDTH;
+          whites.forEach((note, index) => keyboard.append(makeKey(note, octave, false, octaveLeft + index * WHITE_KEY_WIDTH)));
+          whites.forEach((note, index) => {
+            if (blacks[note]) keyboard.append(makeKey(blackLabel(blacks[note]), octave, true, octaveLeft + index * WHITE_KEY_WIDTH + 32));
+          });
+        }
+        updateKeyboardRange();
+      }
+
+      function updateKeyboardRange() {
+        const octave = keyboardDisplayOctave;
+        keyboardRange.textContent = `C${octave}-B${octave}`;
+        keyboardLeftButton.disabled = octave <= KEYBOARD_START_OCTAVE;
+        keyboardRightButton.disabled = octave >= KEYBOARD_START_OCTAVE + KEYBOARD_OCTAVES - 1;
+      }
+
+      function scrollKeyboardToOctave(octave, behavior = "smooth") {
+        const targetOctave = Math.min(KEYBOARD_START_OCTAVE + KEYBOARD_OCTAVES - 1, Math.max(KEYBOARD_START_OCTAVE, octave));
+        keyboardDisplayOctave = targetOctave;
+        updateKeyboardRange();
+        keyboardScroll.scrollTo({ left:(targetOctave - KEYBOARD_START_OCTAVE) * OCTAVE_WIDTH, behavior });
+      }
+
+      function scrollKeyboardByOctave(direction) {
+        scrollKeyboardToOctave(keyboardDisplayOctave + direction);
+      }
+
+      function defaultKeyboardOctave() {
+        return clef === "bass" ? 3 : 4;
       }
 
       Object.entries(KEY_SIGNATURES).forEach(([value, definition]) => {
@@ -927,11 +1023,14 @@
         trebleButton.setAttribute("aria-pressed", clef === "treble");
         bassButton.setAttribute("aria-pressed", clef === "bass");
         saveState();
+        scrollKeyboardToOctave(defaultKeyboardOctave());
         generateQuestion();
       }
 
       trebleButton.addEventListener("click", () => setClef("treble"));
       bassButton.addEventListener("click", () => setClef("bass"));
+      keyboardLeftButton.addEventListener("click", () => scrollKeyboardByOctave(-1));
+      keyboardRightButton.addEventListener("click", () => scrollKeyboardByOctave(1));
       function setStaffVisibility(nextShowStaff) {
         showStaff = nextShowStaff;
         showStaffButton.classList.toggle("active", showStaff);
