@@ -82,31 +82,31 @@
 
     .settings {
       width: 100%;
-      display: flex;
-      flex-wrap: wrap;
-      align-items: center;
-      justify-content: space-between;
-      gap: 14px;
+      display: grid;
+      grid-template-columns: repeat(2, minmax(0, 1fr));
+      align-items: stretch;
+      gap: 10px;
       padding: 12px;
       border: 1px solid color-mix(in srgb, var(--border) 55%, transparent);
       border-radius: 9px;
       background: color-mix(in srgb, var(--secondary) 36%, transparent);
     }
     .setting {
-      display: flex;
-      align-items: center;
-      gap: 10px;
+      min-width: 0;
+      display: grid;
+      align-content: start;
+      gap: 6px;
     }
     .setting-label {
-      width: 45px;
       color: var(--muted);
-      font-size: 14px;
+      font-size: 12px;
       font-weight: 600;
+      line-height: 1.1;
     }
     select {
-      width: 140px;
-      min-height: 40px;
-      padding: 0 12px;
+      width: 100%;
+      min-height: 34px;
+      padding: 0 8px;
       border: 1px solid var(--border);
       border-radius: 7px;
       background: var(--card);
@@ -114,19 +114,23 @@
     }
     .segmented {
       display: flex;
-      gap: 3px;
-      padding: 4px;
+      width: 100%;
+      gap: 2px;
+      padding: 3px;
       border: 1px solid var(--border);
       border-radius: 7px;
       background: var(--card);
     }
     .segmented button {
-      min-height: 32px;
-      padding: 0 16px;
+      flex: 1 1 0;
+      min-width: 0;
+      min-height: 30px;
+      padding: 0 5px;
       border: 0;
       border-radius: 5px;
       background: transparent;
       color: var(--fg);
+      font-size: 14px;
       cursor: pointer;
     }
     .segmented button.active {
@@ -135,21 +139,25 @@
     }
     .radio-group {
       display: flex;
-      gap: 5px;
-      padding: 4px;
+      width: 100%;
+      gap: 2px;
+      padding: 3px;
       border: 1px solid var(--border);
       border-radius: 7px;
       background: var(--card);
     }
     .radio-choice {
       position: relative;
-      min-height: 32px;
+      flex: 1 1 0;
+      min-width: 0;
+      min-height: 30px;
       display: inline-flex;
       align-items: center;
       justify-content: center;
-      padding: 0 12px;
+      padding: 0 5px;
       border-radius: 5px;
       color: var(--fg);
+      font-size: 14px;
       font-weight: 600;
       cursor: pointer;
     }
@@ -165,8 +173,8 @@
     }
     .sound-count-group { gap: 3px; }
     .sound-count-group .radio-choice {
-      min-width: 34px;
-      padding: 0 9px;
+      min-width: 0;
+      padding: 0 2px;
     }
 
     .staff-shell {
@@ -303,6 +311,10 @@
     .white-key.correct, .black-key.correct { border-color: #1f9d4c; background: #35b95d; color: #fff; }
     .white-key.wrong, .black-key.wrong { border-color: #c63636; background: #e04b4b; color: #fff; }
     .white-key.hint, .black-key.hint { border-color: #d99a14; background: #f2bd3f; color: #5a3b00; }
+    .white-key[data-note="C4"] { color: #c7352e; }
+    .white-key[data-note="C4"].correct,
+    .white-key[data-note="C4"].wrong { color: #fff; }
+    .white-key[data-note="C4"].hint { color: #5a3b00; }
 
     .next {
       display: none;
@@ -322,45 +334,8 @@
       header, .content { padding: 18px; }
       .content { gap: 10px; }
       .settings {
-        display: grid;
-        grid-template-columns: repeat(2, minmax(0, 1fr));
-        align-items: stretch;
         gap: 8px;
         padding: 10px;
-      }
-      .setting {
-        min-width: 0;
-        display: grid;
-        align-content: start;
-        gap: 5px;
-      }
-      .setting-label {
-        width: auto;
-        font-size: 12px;
-        line-height: 1.1;
-      }
-      select {
-        width: 100%;
-        min-height: 34px;
-        padding: 0 8px;
-      }
-      .segmented,
-      .radio-group {
-        width: 100%;
-        gap: 2px;
-        padding: 3px;
-      }
-      .segmented button,
-      .radio-choice {
-        flex: 1 1 0;
-        min-width: 0;
-        min-height: 30px;
-        padding: 0 5px;
-        font-size: 14px;
-      }
-      .sound-count-group .radio-choice {
-        min-width: 0;
-        padding: 0 2px;
       }
       .keyboard { margin-inline: 18px; }
       .keyboard-controls { width: calc(100% - 36px); }
