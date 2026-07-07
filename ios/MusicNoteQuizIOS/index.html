@@ -503,6 +503,10 @@
             <button id="midi-connect-button" class="utility-button" type="button">连接钢琴</button>
             <div id="midi-status" class="setting-status">USB / 蓝牙 MIDI</div>
           </div>
+          <div class="setting">
+            <span class="setting-label">屏幕:</span>
+            <div id="wake-lock-status" class="setting-status">练习时保持亮屏</div>
+          </div>
         </div>
 
         <div id="staff-shell" class="staff-shell">
@@ -631,6 +635,7 @@
       const largeKeyboardButton = document.querySelector("#large-keyboard-button");
       const midiConnectButton = document.querySelector("#midi-connect-button");
       const midiStatus = document.querySelector("#midi-status");
+      const wakeLockStatus = document.querySelector("#wake-lock-status");
       const installPrompt = document.querySelector("#install-prompt");
       const installText = document.querySelector("#install-text");
       const installButton = document.querySelector("#install-button");
@@ -649,6 +654,7 @@
       const staffShell = document.querySelector("#staff-shell");
       let midiAccess = null;
       let deferredInstallPrompt = null;
+      let wakeLock = null;
 
       function svg(name, attrs = {}, text = "") {
         const node = document.createElementNS(SVG_NS, name);
@@ -1353,6 +1359,33 @@
       largeKeyboardButton.addEventListener("click", () => setKeyboardMode("large"));
       midiConnectButton.addEventListener("click", connectMidi);
 
+      function updateWakeLockStatus(message) {
+        wakeLockStatus.textContent = message;
+      }
+
+      async function requestWakeLock() {
+        if (!("wakeLock" in navigator)) {
+          updateWakeLockStatus("浏览器不支持常亮");
+          return;
+        }
+        if (document.visibilityState !== "visible") return;
+        try {
+          wakeLock = await navigator.wakeLock.request("screen");
+          updateWakeLockStatus("已保持亮屏");
+          wakeLock.addEventListener("release", () => {
+            wakeLock = null;
+            if (document.visibilityState === "visible") updateWakeLockStatus("点按后恢复常亮");
+          });
+        } catch (_) {
+          updateWakeLockStatus("点按后尝试常亮");
+        }
+      }
+
+      document.addEventListener("visibilitychange", () => {
+        if (document.visibilityState === "visible" && !wakeLock) requestWakeLock();
+      });
+      document.addEventListener("pointerdown", requestWakeLock, { once:true });
+
       function isStandaloneDisplay() {
         return window.matchMedia("(display-mode: standalone)").matches || window.navigator.standalone === true;
       }
@@ -1412,6 +1445,7 @@
       nextButton.addEventListener("click", generateQuestion);
       replayButton.addEventListener("click", playQuestionNotes);
       document.addEventListener("pointerdown", unlockAudio, { once:true });
+      window.addEventListener("load", requestWakeLock);
 
       if ("serviceWorker" in navigator && (location.protocol === "https:" || location.hostname === "localhost" || location.hostname === "127.0.0.1")) {
         window.addEventListener("load", () => {
