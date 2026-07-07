@@ -250,8 +250,8 @@
 
     .staff-shell {
       position: relative;
-      width: min(448px, 100%);
-      aspect-ratio: 3 / 1;
+      width: min(560px, 100%);
+      aspect-ratio: 2 / 1;
       overflow: hidden;
       border: 1px solid var(--border);
       border-radius: 12px;
@@ -421,6 +421,33 @@
       .keyboard { margin-inline: 18px; }
       .keyboard-controls { width: calc(100% - 36px); }
     }
+
+    @media (orientation: landscape) and (max-height: 560px) {
+      main { display: block; padding: 0; }
+      .card {
+        width: 100%;
+        min-height: 100dvh;
+        border: 0;
+        border-radius: 0;
+        box-shadow: none;
+      }
+      header { padding: 12px 18px; }
+      .content {
+        padding: 12px 8px 8px;
+        gap: 8px;
+      }
+      .settings {
+        max-width: 760px;
+        padding: 9px;
+        gap: 7px 10px;
+      }
+      .staff-shell { width: min(620px, 100%); }
+      .keyboard-scroll {
+        width: 100%;
+        padding-inline: 0;
+      }
+      .keyboard { margin-inline: 0; }
+    }
   </style>
 </head>
 <body>
@@ -578,7 +605,10 @@
       const LARGE_BLACK_KEY_OFFSET = LARGE_WHITE_KEY_WIDTH - LARGE_BLACK_KEY_WIDTH / 2;
       const LARGE_OCTAVE_WIDTH = LARGE_WHITE_KEY_WIDTH * 7;
       const MAX_LEDGER_STEP = 8;
-      const MULTI_INPUT_GRACE_MS = 560;
+      const MULTI_INPUT_GRACE_MS = 900;
+      const STAFF_SCALE = 1.5;
+      const STAFF_CENTER_Y = 90;
+      const STAFF_BASE_HEIGHT = 180;
 
       let clef = "treble";
       let keySig = "C";
@@ -1148,6 +1178,12 @@
         multiPressedValues.clear();
       }
 
+      function keepWaitingForMultiInput() {
+        multiInputTimer = null;
+        if (!multiPressedValues.size || feedbackType === "correct") return;
+        showFeedback(`继续输入 ${multiPressedValues.size}/${questionMatchValues().length}`, "correct");
+      }
+
       function pressMultiKey(pressedMidi) {
         if (!Number.isFinite(pressedMidi)) return;
         if (feedbackType === "correct") return;
@@ -1161,7 +1197,7 @@
         if (multiPressedValues.size >= targetCount) {
           evaluateMultiInput();
         } else {
-          multiInputTimer = setTimeout(evaluateMultiInput, MULTI_INPUT_GRACE_MS);
+          multiInputTimer = setTimeout(keepWaitingForMultiInput, MULTI_INPUT_GRACE_MS);
         }
       }
 
@@ -1226,33 +1262,34 @@
         staffShell.classList.toggle("hidden-staff", !showStaff);
         staff.replaceChildren();
         if (!showStaff) return;
-        const noteYValues = questionNotes.map(note => 60 - note[2] * 6);
-        const minY = Math.min(0, ...noteYValues.map(y => y - 38));
-        const maxY = Math.max(120, ...noteYValues.map(y => y + 38));
+        const stepHeight = 6 * STAFF_SCALE;
+        const noteYValues = questionNotes.map(note => STAFF_CENTER_Y - note[2] * stepHeight);
+        const minY = Math.min(0, ...noteYValues.map(y => y - 58));
+        const maxY = Math.max(STAFF_BASE_HEIGHT, ...noteYValues.map(y => y + 58));
         staff.setAttribute("viewBox", `0 ${minY} 300 ${maxY - minY}`);
         staff.append(svg("rect", { x:0, y:minY, width:300, height:maxY - minY, fill:"transparent" }));
-        const group = svg("g", { transform:"translate(0,60)" });
+        const group = svg("g", { transform:`translate(0,${STAFF_CENTER_Y})` });
         staff.append(group);
 
         [-24,-12,0,12,24].forEach(y => {
           group.append(svg("line", {
-            x1:18, y1:y, x2:282, y2:y, stroke:"hsl(20 20% 15%)",
-            "stroke-width":.9, "stroke-opacity":.45
+            x1:18, y1:y * STAFF_SCALE, x2:282, y2:y * STAFF_SCALE, stroke:"hsl(20 20% 15%)",
+            "stroke-width":1.35, "stroke-opacity":.45
           }));
         });
 
         group.append(svg("text", {
-          x:28, y:clef === "treble" ? 24 : 8,
-          "font-size":clef === "treble" ? 56 : 40,
+          x:28, y:(clef === "treble" ? 24 : 8) * STAFF_SCALE,
+          "font-size":(clef === "treble" ? 56 : 40) * STAFF_SCALE,
           "font-family":"serif", fill:"hsl(20 25% 25%)", "text-anchor":"middle"
         }, clef === "treble" ? "𝄞" : "𝄢"));
 
         KEY_SIGNATURES[keySig].accidentals.forEach(([letter, type], index) => {
           const staffY = ACC_Y[type][clef][letter] || 0;
           group.append(svg("text", {
-            x:60 + index * 9,
-            y:staffY + (type === "sharp" ? 5.76 : 2.7),
-            "font-size":18, "font-family":"serif",
+            x:60 + index * 13.5,
+            y:(staffY + (type === "sharp" ? 5.76 : 2.7)) * STAFF_SCALE,
+            "font-size":27, "font-family":"serif",
             fill:"hsl(20 20% 15%)", "text-anchor":"middle"
           }, type === "sharp" ? "♯" : "♭"));
         });
@@ -1266,20 +1303,20 @@
           const isCurrent = index === currentAnswerIndex;
           const ink = isCurrent ? "hsl(20 25% 25%)" : "hsl(20 14% 45%)";
           const noteGroup = svg("g", {
-            transform:`translate(${firstX + index * spacing}, ${-note[2] * 6})`,
+            transform:`translate(${firstX + index * spacing}, ${-note[2] * stepHeight})`,
             opacity:isCurrent ? 1 : .58
           });
           group.append(noteGroup);
           appendLedgerLines(noteGroup, note[2], ink);
           noteGroup.append(svg("ellipse", {
-            cx:0, cy:0, rx:8.5, ry:5.9,
+            cx:0, cy:0, rx:12.75, ry:8.85,
             fill:ink, transform:"rotate(-12)"
           }));
           const label = currentNoteLabel(note);
           if (label) {
             noteGroup.append(svg("text", {
               x:0, y:2.2,
-              "font-size":label.length > 1 ? 6.2 : 7.3,
+              "font-size":label.length > 1 ? 9.3 : 10.95,
               "font-family":"ui-monospace, SFMono-Regular, Menlo, monospace",
               "font-weight":800,
               fill:"#fff",
@@ -1289,9 +1326,9 @@
           }
           const stemUp = note[2] < 0;
           noteGroup.append(svg("line", {
-            x1:stemUp ? 7.2 : -7.2, y1:stemUp ? -1.2 : 1.2,
-            x2:stemUp ? 7.2 : -7.2, y2:stemUp ? -30 : 30,
-            stroke:ink, "stroke-width":1.4
+            x1:stemUp ? 10.8 : -10.8, y1:stemUp ? -1.8 : 1.8,
+            x2:stemUp ? 10.8 : -10.8, y2:stemUp ? -45 : 45,
+            stroke:ink, "stroke-width":2.1
           }));
         });
       }
@@ -1301,12 +1338,12 @@
         const direction = step > 0 ? 1 : -1;
         for (let ledgerStep = 6 * direction; Math.abs(ledgerStep) <= Math.abs(step); ledgerStep += 2 * direction) {
           noteGroup.append(svg("line", {
-            x1:-11,
-            y1:(step - ledgerStep) * 6,
-            x2:11,
-            y2:(step - ledgerStep) * 6,
+            x1:-16.5,
+            y1:(step - ledgerStep) * 6 * STAFF_SCALE,
+            x2:16.5,
+            y2:(step - ledgerStep) * 6 * STAFF_SCALE,
             stroke:ink,
-            "stroke-width":1.2,
+            "stroke-width":1.8,
             "stroke-opacity":.5
           }));
         }
