@@ -929,6 +929,11 @@
         const [status, midi, velocity = 0] = event.data;
         const command = status & 0xf0;
         if (command !== 0x90 || velocity === 0) return;
+        handleMidiNoteOn(midi);
+      }
+
+      function handleMidiNoteOn(midi) {
+        if (!Number.isFinite(midi)) return;
         const label = midiLabel(midi);
         pressKey({
           midi,
@@ -937,6 +942,11 @@
           label
         }, { playSound:false });
       }
+
+      window.musicNoteQuizReceiveMidi = midi => handleMidiNoteOn(Number(midi));
+      window.musicNoteQuizNativeMidiStatus = (message, connected = false) => {
+        updateMidiStatus(String(message || "iOS MIDI"), Boolean(connected));
+      };
 
       function unlockAudio() {
         const context = getAudioContext();
