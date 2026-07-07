@@ -1400,7 +1400,12 @@
         return window.matchMedia("(display-mode: standalone)").matches || window.navigator.standalone === true;
       }
 
+      function isNativeIOSApp() {
+        return navigator.userAgent.includes("MusicNoteQuizIOS");
+      }
+
       function showInstallPrompt(text) {
+        if (isNativeIOSApp()) return;
         if (isStandaloneDisplay() || sessionStorage.getItem("music-note-install-dismissed") === "1") return;
         if (text) installText.textContent = text;
         installPrompt.hidden = false;

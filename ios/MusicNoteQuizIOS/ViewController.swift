@@ -11,6 +11,7 @@ final class ViewController: UIViewController, WKNavigationDelegate {
         let configuration = WKWebViewConfiguration()
         configuration.defaultWebpagePreferences.allowsContentJavaScript = true
         configuration.websiteDataStore = .default()
+        configuration.applicationNameForUserAgent = "MusicNoteQuizIOS"
 
         let webView = WKWebView(frame: .zero, configuration: configuration)
         webView.translatesAutoresizingMaskIntoConstraints = false
