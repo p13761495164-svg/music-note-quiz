@@ -183,6 +183,70 @@
       min-width: 0;
       padding: 0 2px;
     }
+    .utility-button {
+      width: 100%;
+      min-height: 36px;
+      border: 1px solid var(--border);
+      border-radius: 7px;
+      background: var(--card);
+      color: var(--primary);
+      font-weight: 750;
+      cursor: pointer;
+    }
+    .utility-button.connected {
+      border-color: #bbdfc4;
+      background: #eaf7ed;
+      color: #216b35;
+    }
+    .setting-status {
+      color: var(--muted);
+      font-size: 11px;
+      line-height: 1.25;
+      min-height: 14px;
+    }
+
+    .install-prompt {
+      width: 100%;
+      display: grid;
+      gap: 9px;
+      padding: 12px;
+      border: 1px solid color-mix(in srgb, var(--primary) 22%, var(--border));
+      border-radius: 11px;
+      background: color-mix(in srgb, var(--secondary) 62%, var(--card));
+      box-shadow: 0 6px 16px rgba(45, 34, 28, .08);
+    }
+    .install-prompt[hidden] { display: none; }
+    .install-title {
+      margin: 0;
+      color: var(--primary);
+      font-size: 14px;
+      font-weight: 800;
+    }
+    .install-text {
+      margin: 0;
+      color: var(--muted);
+      font-size: 12px;
+      line-height: 1.45;
+    }
+    .install-actions {
+      display: flex;
+      gap: 8px;
+    }
+    .install-actions button {
+      flex: 1 1 0;
+      min-height: 34px;
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      background: var(--card);
+      color: var(--fg);
+      font-weight: 750;
+      cursor: pointer;
+    }
+    .install-actions .primary {
+      border-color: var(--primary);
+      background: var(--primary);
+      color: var(--bg);
+    }
 
     .staff-shell {
       position: relative;
@@ -374,6 +438,15 @@
       </header>
 
       <div class="content">
+        <div id="install-prompt" class="install-prompt" hidden>
+          <p class="install-title">添加到桌面</p>
+          <p id="install-text" class="install-text">把识谱练习安装到桌面，下次可以像 App 一样打开。</p>
+          <div class="install-actions">
+            <button id="install-button" class="primary" type="button">安装</button>
+            <button id="install-dismiss-button" type="button">稍后</button>
+          </div>
+        </div>
+
         <div class="settings">
           <label class="setting">
             <span class="setting-label">调号:</span>
@@ -424,6 +497,11 @@
               <button id="small-keyboard-button" class="active" type="button" aria-pressed="true">小</button>
               <button id="large-keyboard-button" type="button" aria-pressed="false">大</button>
             </div>
+          </div>
+          <div class="setting">
+            <span class="setting-label">MIDI:</span>
+            <button id="midi-connect-button" class="utility-button" type="button">连接钢琴</button>
+            <div id="midi-status" class="setting-status">USB / 蓝牙 MIDI</div>
           </div>
         </div>
 
@@ -551,6 +629,12 @@
       const hardButton = document.querySelector("#hard-button");
       const smallKeyboardButton = document.querySelector("#small-keyboard-button");
       const largeKeyboardButton = document.querySelector("#large-keyboard-button");
+      const midiConnectButton = document.querySelector("#midi-connect-button");
+      const midiStatus = document.querySelector("#midi-status");
+      const installPrompt = document.querySelector("#install-prompt");
+      const installText = document.querySelector("#install-text");
+      const installButton = document.querySelector("#install-button");
+      const installDismissButton = document.querySelector("#install-dismiss-button");
       const noteLabelInputs = [...document.querySelectorAll('input[name="note-label-mode"]')];
       const soundCountInputs = [...document.querySelectorAll('input[name="sound-count"]')];
       const feedbackPill = document.querySelector("#feedback-pill");
@@ -563,6 +647,8 @@
       const keyboardRange = document.querySelector("#keyboard-range");
       const staff = document.querySelector("#staff");
       const staffShell = document.querySelector("#staff-shell");
+      let midiAccess = null;
+      let deferredInstallPrompt = null;
 
       function svg(name, attrs = {}, text = "") {
         const node = document.createElementNS(SVG_NS, name);
@@ -794,6 +880,58 @@
         playTone(noteNameFrequency(String(key || ""), currentNote[1]));
       }
 
+      function midiLabel(midi) {
+        const names = ["C", "C#", "D", "D#", "E", "F", "F#", "G", "G#", "A", "A#", "B"];
+        return `${names[pitchClassFromMidi(midi)]}${Math.floor(midi / 12) - 1}`;
+      }
+
+      function updateMidiStatus(message, connected = false) {
+        midiStatus.textContent = message;
+        midiConnectButton.classList.toggle("connected", connected);
+        midiConnectButton.textContent = connected ? "已连接" : "连接钢琴";
+      }
+
+      function refreshMidiInputs() {
+        if (!midiAccess) return;
+        const inputs = [...midiAccess.inputs.values()];
+        inputs.forEach(input => {
+          input.onmidimessage = handleMidiMessage;
+        });
+        if (inputs.length) {
+          updateMidiStatus(`${inputs.length} 个 MIDI 输入`, true);
+        } else {
+          updateMidiStatus("未发现 MIDI 输入", false);
+        }
+      }
+
+      async function connectMidi() {
+        if (!("requestMIDIAccess" in navigator)) {
+          updateMidiStatus("此浏览器不支持 Web MIDI", false);
+          return;
+        }
+        updateMidiStatus("正在请求 MIDI 权限...", false);
+        try {
+          midiAccess = await navigator.requestMIDIAccess({ sysex:false });
+          midiAccess.onstatechange = refreshMidiInputs;
+          refreshMidiInputs();
+        } catch (_) {
+          updateMidiStatus("MIDI 权限未开启", false);
+        }
+      }
+
+      function handleMidiMessage(event) {
+        const [status, midi, velocity = 0] = event.data;
+        const command = status & 0xf0;
+        if (command !== 0x90 || velocity === 0) return;
+        const label = midiLabel(midi);
+        pressKey({
+          midi,
+          note:label.replace(/[0-9-]+$/, ""),
+          octave:Math.floor(midi / 12) - 1,
+          label
+        }, { playSound:false });
+      }
+
       function unlockAudio() {
         const context = getAudioContext();
         if (!context) return;
@@ -935,9 +1073,9 @@
         keyboard.querySelectorAll("button").forEach(key => key.classList.remove("correct", "wrong", "hint"));
       }
 
-      function pressKey(pressedKey) {
+      function pressKey(pressedKey, options = {}) {
         if (!currentNote || feedbackType === "correct") return;
-        playPressedKey(pressedKey);
+        if (options.playSound !== false) playPressedKey(pressedKey);
         const pressedMidi = typeof pressedKey === "object" ? pressedKey.midi : null;
         const answerMidi = noteMidi(currentNote);
         const answer = expectedPitchLabel(currentNote);
@@ -1213,6 +1351,50 @@
       }
       smallKeyboardButton.addEventListener("click", () => setKeyboardMode("small"));
       largeKeyboardButton.addEventListener("click", () => setKeyboardMode("large"));
+      midiConnectButton.addEventListener("click", connectMidi);
+
+      function isStandaloneDisplay() {
+        return window.matchMedia("(display-mode: standalone)").matches || window.navigator.standalone === true;
+      }
+
+      function showInstallPrompt(text) {
+        if (isStandaloneDisplay() || sessionStorage.getItem("music-note-install-dismissed") === "1") return;
+        if (text) installText.textContent = text;
+        installPrompt.hidden = false;
+      }
+
+      window.addEventListener("beforeinstallprompt", event => {
+        event.preventDefault();
+        deferredInstallPrompt = event;
+        showInstallPrompt("把识谱练习安装到桌面，下次可以像 App 一样打开。");
+      });
+
+      installButton.addEventListener("click", async () => {
+        if (deferredInstallPrompt) {
+          const promptEvent = deferredInstallPrompt;
+          deferredInstallPrompt = null;
+          promptEvent.prompt();
+          await promptEvent.userChoice.catch(() => {});
+          installPrompt.hidden = true;
+        } else {
+          installText.textContent = "请在浏览器菜单中选择“添加到主屏幕”或“安装应用”。";
+        }
+      });
+
+      installDismissButton.addEventListener("click", () => {
+        sessionStorage.setItem("music-note-install-dismissed", "1");
+        installPrompt.hidden = true;
+      });
+
+      window.addEventListener("appinstalled", () => {
+        installPrompt.hidden = true;
+      });
+
+      window.addEventListener("load", () => {
+        setTimeout(() => {
+          if (!deferredInstallPrompt) showInstallPrompt("请在浏览器菜单中选择“添加到主屏幕”或“安装应用”。");
+        }, 1200);
+      });
       noteLabelInputs.forEach(input => {
         input.addEventListener("change", () => {
           noteLabelMode = input.value;
