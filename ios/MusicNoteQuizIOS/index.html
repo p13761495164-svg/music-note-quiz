@@ -578,6 +578,7 @@
       const LARGE_BLACK_KEY_OFFSET = LARGE_WHITE_KEY_WIDTH - LARGE_BLACK_KEY_WIDTH / 2;
       const LARGE_OCTAVE_WIDTH = LARGE_WHITE_KEY_WIDTH * 7;
       const MAX_LEDGER_STEP = 8;
+      const MULTI_INPUT_GRACE_MS = 560;
 
       let clef = "treble";
       let keySig = "C";
@@ -592,6 +593,8 @@
       let difficulty = "easy";
       let keyboardMode = "small";
       let advanceTimer = null;
+      let multiInputTimer = null;
+      let multiPressedValues = new Set();
       let soundTimers = [];
       let stateUpdatedAt = 0;
       let audioContext = null;
@@ -713,6 +716,14 @@
         }
       }
 
+      function clearMultiInput() {
+        if (multiInputTimer !== null) {
+          clearTimeout(multiInputTimer);
+          multiInputTimer = null;
+        }
+        multiPressedValues.clear();
+      }
+
       function clearSoundTimers() {
         soundTimers.forEach(timer => clearTimeout(timer));
         soundTimers = [];
@@ -720,6 +731,7 @@
 
       function generateQuestion() {
         clearAdvanceTimer();
+        clearMultiInput();
         clearSoundTimers();
         questionNotes = generateQuestionNotes();
         currentAnswerIndex = 0;
@@ -1089,10 +1101,78 @@
         keyboard.querySelectorAll("button").forEach(key => key.classList.remove("correct", "wrong", "hint"));
       }
 
+      function matchValueFromMidi(midi) {
+        return keyboardMode === "large" ? pitchClassFromMidi(midi) : midi;
+      }
+
+      function matchValueFromNote(note) {
+        return matchValueFromMidi(noteMidi(note));
+      }
+
+      function questionMatchValues() {
+        return [...new Set(questionNotes.map(matchValueFromNote))];
+      }
+
+      function evaluateMultiInput() {
+        multiInputTimer = null;
+        const targetValues = questionMatchValues();
+        const isCorrect = targetValues.length === multiPressedValues.size
+          && targetValues.every(value => multiPressedValues.has(value));
+        const previouslyWrong = feedbackType === "wrong";
+        resetKeys();
+
+        if (isCorrect) {
+          questionNotes.forEach(note => setKeyState(noteMidi(note), "correct"));
+          feedbackType = "correct";
+          if (!previouslyWrong) {
+            score.correct += 1;
+            score.total += 1;
+            updateScore();
+            saveState();
+          }
+          showFeedback("正确!", "correct");
+          advanceTimer = setTimeout(() => {
+            advanceTimer = null;
+            generateQuestion();
+          }, 900);
+        } else {
+          if (!previouslyWrong) {
+            score.total += 1;
+            updateScore();
+            saveState();
+          }
+          questionNotes.forEach(note => setKeyState(noteMidi(note), "hint"));
+          showFeedback(`提示: 需要 ${targetValues.length} 个音`, "wrong");
+          feedbackType = "wrong";
+        }
+        multiPressedValues.clear();
+      }
+
+      function pressMultiKey(pressedMidi) {
+        if (!Number.isFinite(pressedMidi)) return;
+        if (feedbackType === "correct") return;
+        const targetCount = questionMatchValues().length;
+        if (multiPressedValues.size === 0) resetKeys();
+        multiPressedValues.add(matchValueFromMidi(pressedMidi));
+        setKeyState(pressedMidi, "correct");
+        showFeedback(`已输入 ${Math.min(multiPressedValues.size, targetCount)}/${targetCount}`, "correct");
+
+        if (multiInputTimer !== null) clearTimeout(multiInputTimer);
+        if (multiPressedValues.size >= targetCount) {
+          evaluateMultiInput();
+        } else {
+          multiInputTimer = setTimeout(evaluateMultiInput, MULTI_INPUT_GRACE_MS);
+        }
+      }
+
       function pressKey(pressedKey, options = {}) {
         if (!currentNote || feedbackType === "correct") return;
         if (options.playSound !== false) playPressedKey(pressedKey);
         const pressedMidi = typeof pressedKey === "object" ? pressedKey.midi : null;
+        if (questionNotes.length > 1) {
+          pressMultiKey(pressedMidi);
+          return;
+        }
         const answerMidi = noteMidi(currentNote);
         const answer = expectedPitchLabel(currentNote);
         const previouslyWrong = feedbackType === "wrong";
