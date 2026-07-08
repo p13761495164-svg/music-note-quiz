@@ -204,6 +204,24 @@
       line-height: 1.25;
       min-height: 14px;
     }
+    .version-row {
+      display: grid;
+      grid-template-columns: minmax(0, 1fr) auto;
+      align-items: center;
+      gap: 6px;
+    }
+    .version-text {
+      color: var(--muted);
+      font-size: 12px;
+      font-weight: 700;
+      white-space: nowrap;
+    }
+    .refresh-button {
+      min-height: 30px;
+      padding: 0 10px;
+      border-radius: 7px;
+      font-size: 12px;
+    }
 
     .install-prompt {
       width: 100%;
@@ -569,6 +587,13 @@
             <span class="setting-label">屏幕:</span>
             <div id="wake-lock-status" class="setting-status">练习时保持亮屏</div>
           </div>
+          <div class="setting">
+            <span class="setting-label">版本:</span>
+            <div class="version-row">
+              <span id="app-version" class="version-text">Web v--</span>
+              <button id="force-update-button" class="utility-button refresh-button" type="button">强制更新</button>
+            </div>
+          </div>
         </div>
 
         <div id="staff-shell" class="staff-shell">
@@ -628,6 +653,7 @@
       const STORAGE_KEY = "music-note-quiz-state";
       const DB_NAME = "music-note-quiz";
       const DB_STORE = "state";
+      const WEB_VERSION = "2026.07.08.2";
       const PIANO_LOW_MIDI = 21;
       const PIANO_HIGH_MIDI = 108;
       const PIANO_CENTER_MIDI = 60;
@@ -707,6 +733,8 @@
       const midiConnectButton = document.querySelector("#midi-connect-button");
       const midiStatus = document.querySelector("#midi-status");
       const wakeLockStatus = document.querySelector("#wake-lock-status");
+      const appVersion = document.querySelector("#app-version");
+      const forceUpdateButton = document.querySelector("#force-update-button");
       const installPrompt = document.querySelector("#install-prompt");
       const installText = document.querySelector("#install-text");
       const installButton = document.querySelector("#install-button");
@@ -726,6 +754,7 @@
       let midiAccess = null;
       let deferredInstallPrompt = null;
       let wakeLock = null;
+      appVersion.textContent = `Web v${WEB_VERSION}`;
 
       function svg(name, attrs = {}, text = "") {
         const node = document.createElementNS(SVG_NS, name);
@@ -1653,6 +1682,7 @@
       });
       nextButton.addEventListener("click", generateQuestion);
       replayButton.addEventListener("click", playQuestionNotes);
+      forceUpdateButton.addEventListener("click", forceUpdateApp);
       document.addEventListener("pointerdown", unlockAudio, { once:true });
       window.addEventListener("load", requestWakeLock);
 
@@ -1660,6 +1690,26 @@
         window.addEventListener("load", () => {
           navigator.serviceWorker.register("./sw.js").catch(() => {});
         });
+      }
+
+      async function forceUpdateApp() {
+        forceUpdateButton.disabled = true;
+        forceUpdateButton.textContent = "更新中";
+        try {
+          if ("serviceWorker" in navigator) {
+            const registrations = await navigator.serviceWorker.getRegistrations();
+            await Promise.all(registrations.map(registration => registration.unregister()));
+          }
+          if ("caches" in window) {
+            const keys = await caches.keys();
+            await Promise.all(keys.map(key => caches.delete(key)));
+          }
+        } catch (_) {
+          // Reload anyway; the cache-busting URL still forces a fresh request in most cases.
+        }
+        const url = new URL(window.location.href);
+        url.searchParams.set("forceUpdate", Date.now().toString());
+        window.location.replace(url.toString());
       }
 
       refreshSavedSettings();
