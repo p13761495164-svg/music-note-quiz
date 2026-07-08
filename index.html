@@ -246,6 +246,29 @@
       font-size: 12px;
       line-height: 1.45;
     }
+    .audio-prompt {
+      width: 100%;
+      display: grid;
+      grid-template-columns: minmax(0, 1fr) auto;
+      align-items: center;
+      gap: 10px;
+      padding: 10px 12px;
+      border: 1px solid color-mix(in srgb, var(--primary) 18%, var(--border));
+      border-radius: 11px;
+      background: color-mix(in srgb, var(--card) 76%, var(--secondary));
+    }
+    .audio-prompt[hidden] { display: none; }
+    .audio-prompt-text {
+      margin: 0;
+      color: var(--muted);
+      font-size: 12px;
+      line-height: 1.35;
+    }
+    .audio-prompt-button {
+      min-height: 34px;
+      padding: 0 12px;
+      white-space: nowrap;
+    }
     .install-actions {
       display: flex;
       gap: 8px;
@@ -526,6 +549,10 @@
             <button id="install-dismiss-button" type="button">稍后</button>
           </div>
         </div>
+        <div id="audio-prompt" class="audio-prompt" hidden>
+          <p class="audio-prompt-text">使用 MIDI 键盘前，请点一次开启声音。iOS 需要触屏授权后才能自动播放题目声音。</p>
+          <button id="audio-enable-button" class="utility-button audio-prompt-button" type="button">开启声音</button>
+        </div>
 
         <div class="settings">
           <label class="setting">
@@ -653,7 +680,7 @@
       const STORAGE_KEY = "music-note-quiz-state";
       const DB_NAME = "music-note-quiz";
       const DB_STORE = "state";
-      const WEB_VERSION = "2026.07.08.2";
+      const WEB_VERSION = "2026.07.08.3";
       const PIANO_LOW_MIDI = 21;
       const PIANO_HIGH_MIDI = 108;
       const PIANO_CENTER_MIDI = 60;
@@ -739,6 +766,8 @@
       const installText = document.querySelector("#install-text");
       const installButton = document.querySelector("#install-button");
       const installDismissButton = document.querySelector("#install-dismiss-button");
+      const audioPrompt = document.querySelector("#audio-prompt");
+      const audioEnableButton = document.querySelector("#audio-enable-button");
       const noteLabelInputs = [...document.querySelectorAll('input[name="note-label-mode"]')];
       const soundCountInputs = [...document.querySelectorAll('input[name="sound-count"]')];
       const feedbackPill = document.querySelector("#feedback-pill");
@@ -754,6 +783,7 @@
       let midiAccess = null;
       let deferredInstallPrompt = null;
       let wakeLock = null;
+      let audioUnlocked = false;
       appVersion.textContent = `Web v${WEB_VERSION}`;
 
       function svg(name, attrs = {}, text = "") {
@@ -1022,6 +1052,7 @@
       }
 
       async function connectMidi() {
+        unlockAudio();
         if (!("requestMIDIAccess" in navigator)) {
           updateMidiStatus("此浏览器不支持 Web MIDI", false);
           return;
@@ -1059,10 +1090,28 @@
         updateMidiStatus(String(message || "iOS MIDI"), Boolean(connected));
       };
 
-      function unlockAudio() {
+      function showAudioPrompt() {
+        if (audioUnlocked) return;
+        audioPrompt.hidden = false;
+      }
+
+      function hideAudioPrompt() {
+        audioPrompt.hidden = true;
+      }
+
+      function unlockAudio({ replay = true } = {}) {
         const context = getAudioContext();
         if (!context) return;
-        context.resume().then(playQuestionNotes).catch(() => {});
+        const markUnlocked = () => {
+          audioUnlocked = context.state === "running";
+          if (audioUnlocked) hideAudioPrompt();
+          if (audioUnlocked && replay) playQuestionNotes();
+        };
+        if (context.state === "running") {
+          markUnlocked();
+          return;
+        }
+        context.resume().then(markUnlocked).catch(showAudioPrompt);
       }
 
       function currentNoteLabel(note = currentNote) {
@@ -1683,8 +1732,10 @@
       nextButton.addEventListener("click", generateQuestion);
       replayButton.addEventListener("click", playQuestionNotes);
       forceUpdateButton.addEventListener("click", forceUpdateApp);
+      audioEnableButton.addEventListener("click", () => unlockAudio({ replay:true }));
       document.addEventListener("pointerdown", unlockAudio, { once:true });
       window.addEventListener("load", requestWakeLock);
+      window.addEventListener("load", () => setTimeout(showAudioPrompt, 700));
 
       if ("serviceWorker" in navigator && (location.protocol === "https:" || location.hostname === "localhost" || location.hostname === "127.0.0.1")) {
         window.addEventListener("load", () => {
