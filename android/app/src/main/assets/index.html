@@ -448,6 +448,41 @@
       }
       .keyboard { margin-inline: 0; }
     }
+
+    @media (orientation: landscape) and (min-width: 768px) {
+      main {
+        display: block;
+        padding: 0;
+      }
+      .card {
+        width: 100%;
+        min-height: 100dvh;
+        border: 0;
+        border-radius: 0;
+        box-shadow: none;
+      }
+      header {
+        padding: 14px max(22px, env(safe-area-inset-left)) 14px max(22px, env(safe-area-inset-right));
+      }
+      .content {
+        width: 100%;
+        padding: 14px max(12px, env(safe-area-inset-left)) 10px max(12px, env(safe-area-inset-right));
+        gap: 9px;
+      }
+      .settings {
+        width: min(860px, 100%);
+      }
+      .staff-shell {
+        width: min(760px, 100%);
+      }
+      .keyboard-scroll {
+        width: 100%;
+        padding-inline: 0;
+      }
+      .keyboard {
+        margin-inline: 0;
+      }
+    }
   </style>
 </head>
 <body>
