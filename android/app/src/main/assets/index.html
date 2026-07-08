@@ -556,33 +556,41 @@
 
         <div class="settings">
           <label class="setting">
-            <span class="setting-label">调号:</span>
+            <span id="language-label" class="setting-label">语言:</span>
+            <select id="language-select" aria-label="语言">
+              <option value="zh">中文</option>
+              <option value="ja">日本語</option>
+              <option value="en">English</option>
+            </select>
+          </label>
+          <label class="setting">
+            <span id="key-label" class="setting-label">调号:</span>
             <select id="key-signature" aria-label="调号"></select>
           </label>
           <div class="setting">
-            <span class="setting-label">谱号:</span>
+            <span id="clef-label" class="setting-label">谱号:</span>
             <div class="segmented" role="group" aria-label="谱号">
               <button id="treble-button" class="active" type="button" aria-pressed="true">高音</button>
               <button id="bass-button" type="button" aria-pressed="false">低音</button>
             </div>
           </div>
           <div class="setting">
-            <span class="setting-label">音符:</span>
+            <span id="note-label" class="setting-label">音符:</span>
             <div class="radio-group" role="radiogroup" aria-label="音符显示">
-              <label class="radio-choice"><input type="radio" name="note-label-mode" value="letter">音高</label>
-              <label class="radio-choice"><input type="radio" name="note-label-mode" value="degree">级数</label>
-              <label class="radio-choice"><input type="radio" name="note-label-mode" value="none" checked>隐藏</label>
+              <label class="radio-choice"><input type="radio" name="note-label-mode" value="letter"><span id="note-letter-label">音高</span></label>
+              <label class="radio-choice"><input type="radio" name="note-label-mode" value="degree"><span id="note-degree-label">级数</span></label>
+              <label class="radio-choice"><input type="radio" name="note-label-mode" value="none" checked><span id="note-none-label">隐藏</span></label>
             </div>
           </div>
           <div class="setting">
-            <span class="setting-label">谱面:</span>
+            <span id="staff-label" class="setting-label">谱面:</span>
             <div class="segmented" role="group" aria-label="五线谱显示">
               <button id="show-staff-button" class="active" type="button" aria-pressed="true">显示</button>
               <button id="hide-staff-button" type="button" aria-pressed="false">隐藏</button>
             </div>
           </div>
           <label class="setting">
-            <span class="setting-label">声音:</span>
+            <span id="sound-label" class="setting-label">声音:</span>
             <div class="radio-group sound-count-group" role="radiogroup" aria-label="声音个数">
               <label class="radio-choice"><input type="radio" name="sound-count" value="1" checked>1</label>
               <label class="radio-choice"><input type="radio" name="sound-count" value="2">2</label>
@@ -592,30 +600,30 @@
             </div>
           </label>
           <div class="setting">
-            <span class="setting-label">难度:</span>
+            <span id="difficulty-label" class="setting-label">难度:</span>
             <div class="segmented" role="group" aria-label="难度">
               <button id="easy-button" class="active" type="button" aria-pressed="true">易</button>
               <button id="hard-button" type="button" aria-pressed="false">难</button>
             </div>
           </div>
           <div class="setting">
-            <span class="setting-label">琴键:</span>
+            <span id="keyboard-label" class="setting-label">琴键:</span>
             <div class="segmented" role="group" aria-label="琴键大小">
               <button id="small-keyboard-button" class="active" type="button" aria-pressed="true">小</button>
               <button id="large-keyboard-button" type="button" aria-pressed="false">大</button>
             </div>
           </div>
           <div class="setting">
-            <span class="setting-label">MIDI:</span>
+            <span id="midi-label" class="setting-label">MIDI:</span>
             <button id="midi-connect-button" class="utility-button" type="button">连接钢琴</button>
             <div id="midi-status" class="setting-status">USB / 蓝牙 MIDI</div>
           </div>
           <div class="setting">
-            <span class="setting-label">屏幕:</span>
+            <span id="screen-label" class="setting-label">屏幕:</span>
             <div id="wake-lock-status" class="setting-status">练习时保持亮屏</div>
           </div>
           <div class="setting">
-            <span class="setting-label">版本:</span>
+            <span id="version-label" class="setting-label">版本:</span>
             <div class="version-row">
               <span id="app-version" class="version-text">Web v--</span>
               <button id="force-update-button" class="utility-button refresh-button" type="button">强制更新</button>
@@ -664,6 +672,176 @@
         Ab: { name: "Ab大调", accidentals: [["B", "flat"], ["E", "flat"], ["A", "flat"], ["D", "flat"]] },
         Db: { name: "Db大调", accidentals: [["B", "flat"], ["E", "flat"], ["A", "flat"], ["D", "flat"], ["G", "flat"]] }
       };
+      const UI_TEXT = {
+        zh: {
+          title:"识谱练习",
+          subtitle:"Note Reading Practice",
+          score:"分数",
+          installTitle:"添加到桌面",
+          installText:"把识谱练习安装到桌面，下次可以像 App 一样打开。",
+          install:"安装",
+          later:"稍后",
+          installHelp:"请在浏览器菜单中选择“添加到主屏幕”或“安装应用”。",
+          audioHelp:"使用 MIDI 键盘前，请点一次开启声音。iOS 需要触屏授权后才能自动播放题目声音。",
+          enableAudio:"开启声音",
+          language:"语言:",
+          key:"调号:",
+          clef:"谱号:",
+          treble:"高音",
+          bass:"低音",
+          note:"音符:",
+          pitch:"音高",
+          degree:"级数",
+          hidden:"隐藏",
+          staff:"谱面:",
+          show:"显示",
+          sound:"声音:",
+          difficulty:"难度:",
+          easy:"易",
+          hard:"难",
+          keyboard:"琴键:",
+          small:"小",
+          large:"大",
+          midi:"MIDI:",
+          connectPiano:"连接钢琴",
+          connected:"已连接",
+          midiIdle:"USB / 蓝牙 MIDI",
+          midiNone:"未发现 MIDI 输入",
+          midiUnsupported:"此浏览器不支持 Web MIDI",
+          midiRequesting:"正在请求 MIDI 权限...",
+          midiDenied:"MIDI 权限未开启",
+          screen:"屏幕:",
+          wakeIdle:"练习时保持亮屏",
+          wakeUnsupported:"浏览器不支持常亮",
+          wakeOn:"已保持亮屏",
+          wakeReleased:"点按后恢复常亮",
+          wakeRetry:"点按后尝试常亮",
+          version:"版本:",
+          forceUpdate:"强制更新",
+          updating:"更新中",
+          replay:"重听",
+          next:"下一题",
+          correct:"正确!",
+          multiHint:count => `提示: 需要 ${count} 个音`,
+          continueInput:(done, total) => `继续输入 ${done}/${total}`,
+          entered:(done, total) => `已输入 ${done}/${total}`,
+          partialCorrect:(done, total) => `正确! ${done}/${total}`,
+          singleHint:(index, answer) => `提示: 第 ${index} 个是 ${answer}`,
+          major:"大调"
+        },
+        ja: {
+          title:"譜読み練習",
+          subtitle:"Note Reading Practice",
+          score:"スコア",
+          installTitle:"ホーム画面に追加",
+          installText:"譜読み練習をホーム画面に追加すると、次回からアプリのように開けます。",
+          install:"追加",
+          later:"あとで",
+          installHelp:"ブラウザのメニューから「ホーム画面に追加」または「アプリをインストール」を選んでください。",
+          audioHelp:"MIDI鍵盤を使う前に、一度だけ音を有効にしてください。iOSでは画面タップ後に音を自動再生できます。",
+          enableAudio:"音を有効にする",
+          language:"言語:",
+          key:"調:",
+          clef:"音部記号:",
+          treble:"高音部",
+          bass:"低音部",
+          note:"音符:",
+          pitch:"音名",
+          degree:"度数",
+          hidden:"非表示",
+          staff:"五線譜:",
+          show:"表示",
+          sound:"音数:",
+          difficulty:"難易度:",
+          easy:"易しい",
+          hard:"難しい",
+          keyboard:"鍵盤:",
+          small:"小",
+          large:"大",
+          midi:"MIDI:",
+          connectPiano:"鍵盤を接続",
+          connected:"接続済み",
+          midiIdle:"USB / Bluetooth MIDI",
+          midiNone:"iOS MIDI 入力なし",
+          midiUnsupported:"このブラウザは Web MIDI に対応していません",
+          midiRequesting:"MIDI 権限を要求中...",
+          midiDenied:"MIDI 権限が有効ではありません",
+          screen:"画面:",
+          wakeIdle:"練習中は画面をオンに保つ",
+          wakeUnsupported:"画面常時オンに非対応",
+          wakeOn:"画面をオンに保持中",
+          wakeReleased:"タップ後に再開します",
+          wakeRetry:"タップ後に常時オンを試します",
+          version:"バージョン:",
+          forceUpdate:"更新",
+          updating:"更新中",
+          replay:"もう一度",
+          next:"次の問題",
+          correct:"正解!",
+          multiHint:count => `ヒント: ${count} 個の音が必要です`,
+          continueInput:(done, total) => `入力を続けてください ${done}/${total}`,
+          entered:(done, total) => `入力済み ${done}/${total}`,
+          partialCorrect:(done, total) => `正解! ${done}/${total}`,
+          singleHint:(index, answer) => `ヒント: ${index} 番目は ${answer}`,
+          major:"長調"
+        },
+        en: {
+          title:"Note Reading Practice",
+          subtitle:"Music Note Quiz",
+          score:"Score",
+          installTitle:"Add to Home Screen",
+          installText:"Install Music Note Quiz on your Home Screen and open it like an app next time.",
+          install:"Install",
+          later:"Later",
+          installHelp:"Use your browser menu to choose Add to Home Screen or Install App.",
+          audioHelp:"Before using a MIDI keyboard, tap once to enable sound. iOS requires a touch gesture before autoplaying question audio.",
+          enableAudio:"Enable Sound",
+          language:"Language:",
+          key:"Key:",
+          clef:"Clef:",
+          treble:"Treble",
+          bass:"Bass",
+          note:"Note:",
+          pitch:"Pitch",
+          degree:"Degree",
+          hidden:"Hidden",
+          staff:"Staff:",
+          show:"Show",
+          sound:"Sounds:",
+          difficulty:"Difficulty:",
+          easy:"Easy",
+          hard:"Hard",
+          keyboard:"Keyboard:",
+          small:"Small",
+          large:"Large",
+          midi:"MIDI:",
+          connectPiano:"Connect Piano",
+          connected:"Connected",
+          midiIdle:"USB / Bluetooth MIDI",
+          midiNone:"No MIDI input found",
+          midiUnsupported:"This browser does not support Web MIDI",
+          midiRequesting:"Requesting MIDI permission...",
+          midiDenied:"MIDI permission is not enabled",
+          screen:"Screen:",
+          wakeIdle:"Keep screen awake while practicing",
+          wakeUnsupported:"Screen wake lock is not supported",
+          wakeOn:"Screen will stay awake",
+          wakeReleased:"Tap to restore wake lock",
+          wakeRetry:"Tap to try wake lock",
+          version:"Version:",
+          forceUpdate:"Refresh",
+          updating:"Refreshing",
+          replay:"Replay",
+          next:"Next",
+          correct:"Correct!",
+          multiHint:count => `Hint: ${count} notes needed`,
+          continueInput:(done, total) => `Keep playing ${done}/${total}`,
+          entered:(done, total) => `Entered ${done}/${total}`,
+          partialCorrect:(done, total) => `Correct! ${done}/${total}`,
+          singleHint:(index, answer) => `Hint: note ${index} is ${answer}`,
+          major:"Major"
+        }
+      };
 
       const NOTE_LETTERS = ["C", "D", "E", "F", "G", "A", "B"];
       const ACC_Y = {
@@ -680,7 +858,7 @@
       const STORAGE_KEY = "music-note-quiz-state";
       const DB_NAME = "music-note-quiz";
       const DB_STORE = "state";
-      const WEB_VERSION = "2026.07.08.3";
+      const WEB_VERSION = "2026.07.08.4";
       const PIANO_LOW_MIDI = 21;
       const PIANO_HIGH_MIDI = 108;
       const PIANO_CENTER_MIDI = 60;
@@ -701,8 +879,20 @@
       const STAFF_CENTER_Y = 90;
       const STAFF_BASE_HEIGHT = 180;
 
+      function detectUiLanguage() {
+        const languages = navigator.languages && navigator.languages.length ? navigator.languages : [navigator.language || "en"];
+        for (const language of languages) {
+          const normalized = String(language || "").toLowerCase();
+          if (normalized.startsWith("zh")) return "zh";
+          if (normalized.startsWith("ja")) return "ja";
+          if (normalized.startsWith("en")) return "en";
+        }
+        return "en";
+      }
+
       let clef = "treble";
       let keySig = "C";
+      let uiLanguage = detectUiLanguage();
       let questionNotes = [];
       let currentAnswerIndex = 0;
       let currentNote = null;
@@ -724,6 +914,7 @@
       function applySavedState(saved) {
         if (!saved || typeof saved !== "object") return false;
         if (Object.hasOwn(KEY_SIGNATURES, saved.keySig)) keySig = saved.keySig;
+        if (Object.hasOwn(UI_TEXT, saved.uiLanguage)) uiLanguage = saved.uiLanguage;
         if (saved.clef === "treble" || saved.clef === "bass") clef = saved.clef;
         if (Number.isInteger(saved.correct) && Number.isInteger(saved.total)
             && saved.correct >= 0 && saved.total >= saved.correct) {
@@ -749,6 +940,7 @@
       }
 
       const keySelect = document.querySelector("#key-signature");
+      const languageSelect = document.querySelector("#language-select");
       const trebleButton = document.querySelector("#treble-button");
       const bassButton = document.querySelector("#bass-button");
       const showStaffButton = document.querySelector("#show-staff-button");
@@ -785,6 +977,77 @@
       let wakeLock = null;
       let audioUnlocked = false;
       appVersion.textContent = `Web v${WEB_VERSION}`;
+
+      function t(key, ...args) {
+        const value = (UI_TEXT[uiLanguage] || UI_TEXT.en)[key] ?? UI_TEXT.en[key];
+        return typeof value === "function" ? value(...args) : value;
+      }
+
+      function keySignatureName(value) {
+        return `${value}${t("major")}`;
+      }
+
+      function renderKeySignatureOptions() {
+        keySelect.replaceChildren();
+        Object.keys(KEY_SIGNATURES).forEach(value => {
+          const option = document.createElement("option");
+          option.value = value;
+          option.textContent = keySignatureName(value);
+          keySelect.append(option);
+        });
+        keySelect.value = keySig;
+      }
+
+      function updateWakeLockIdleText() {
+        if (!wakeLock) wakeLockStatus.textContent = t("wakeIdle");
+      }
+
+      function applyLanguage() {
+        document.documentElement.lang = uiLanguage === "zh" ? "zh-CN" : uiLanguage;
+        document.title = t("title");
+        document.querySelector('meta[name="description"]')?.setAttribute("content", t("title"));
+        document.querySelector('meta[name="apple-mobile-web-app-title"]')?.setAttribute("content", t("title"));
+        document.querySelector("section.card")?.setAttribute("aria-label", t("title"));
+        document.querySelector("h1").textContent = t("title");
+        document.querySelector(".subtitle").textContent = t("subtitle");
+        document.querySelector(".score-label").textContent = t("score");
+        document.querySelector(".install-title").textContent = t("installTitle");
+        installText.textContent = t("installText");
+        installButton.textContent = t("install");
+        installDismissButton.textContent = t("later");
+        document.querySelector(".audio-prompt-text").textContent = t("audioHelp");
+        audioEnableButton.textContent = t("enableAudio");
+        document.querySelector("#language-label").textContent = t("language");
+        document.querySelector("#key-label").textContent = t("key");
+        document.querySelector("#clef-label").textContent = t("clef");
+        trebleButton.textContent = t("treble");
+        bassButton.textContent = t("bass");
+        document.querySelector("#note-label").textContent = t("note");
+        document.querySelector("#note-letter-label").textContent = t("pitch");
+        document.querySelector("#note-degree-label").textContent = t("degree");
+        document.querySelector("#note-none-label").textContent = t("hidden");
+        document.querySelector("#staff-label").textContent = t("staff");
+        showStaffButton.textContent = t("show");
+        hideStaffButton.textContent = t("hidden");
+        document.querySelector("#sound-label").textContent = t("sound");
+        document.querySelector("#difficulty-label").textContent = t("difficulty");
+        easyButton.textContent = t("easy");
+        hardButton.textContent = t("hard");
+        document.querySelector("#keyboard-label").textContent = t("keyboard");
+        smallKeyboardButton.textContent = t("small");
+        largeKeyboardButton.textContent = t("large");
+        document.querySelector("#midi-label").textContent = t("midi");
+        if (!midiConnectButton.classList.contains("connected")) midiConnectButton.textContent = t("connectPiano");
+        if (!midiAccess) midiStatus.textContent = t("midiIdle");
+        document.querySelector("#screen-label").textContent = t("screen");
+        updateWakeLockIdleText();
+        document.querySelector("#version-label").textContent = t("version");
+        if (!forceUpdateButton.disabled) forceUpdateButton.textContent = t("forceUpdate");
+        replayButton.textContent = t("replay");
+        nextButton.textContent = t("next");
+        languageSelect.value = uiLanguage;
+        renderKeySignatureOptions();
+      }
 
       function svg(name, attrs = {}, text = "") {
         const node = document.createElementNS(SVG_NS, name);
@@ -1035,7 +1298,7 @@
       function updateMidiStatus(message, connected = false) {
         midiStatus.textContent = message;
         midiConnectButton.classList.toggle("connected", connected);
-        midiConnectButton.textContent = connected ? "已连接" : "连接钢琴";
+        midiConnectButton.textContent = connected ? t("connected") : t("connectPiano");
       }
 
       function refreshMidiInputs() {
@@ -1045,25 +1308,25 @@
           input.onmidimessage = handleMidiMessage;
         });
         if (inputs.length) {
-          updateMidiStatus(`${inputs.length} 个 MIDI 输入`, true);
+          updateMidiStatus(uiLanguage === "en" ? `${inputs.length} MIDI inputs` : uiLanguage === "ja" ? `${inputs.length} 個の MIDI 入力` : `${inputs.length} 个 MIDI 输入`, true);
         } else {
-          updateMidiStatus("未发现 MIDI 输入", false);
+          updateMidiStatus(t("midiNone"), false);
         }
       }
 
       async function connectMidi() {
         unlockAudio();
         if (!("requestMIDIAccess" in navigator)) {
-          updateMidiStatus("此浏览器不支持 Web MIDI", false);
+          updateMidiStatus(t("midiUnsupported"), false);
           return;
         }
-        updateMidiStatus("正在请求 MIDI 权限...", false);
+        updateMidiStatus(t("midiRequesting"), false);
         try {
           midiAccess = await navigator.requestMIDIAccess({ sysex:false });
           midiAccess.onstatechange = refreshMidiInputs;
           refreshMidiInputs();
         } catch (_) {
-          updateMidiStatus("MIDI 权限未开启", false);
+          updateMidiStatus(t("midiDenied"), false);
         }
       }
 
@@ -1167,7 +1430,9 @@
       }
 
       function refreshSavedSettings() {
+        applyLanguage();
         keySelect.value = keySig;
+        languageSelect.value = uiLanguage;
         trebleButton.classList.toggle("active", clef === "treble");
         bassButton.classList.toggle("active", clef === "bass");
         trebleButton.setAttribute("aria-pressed", clef === "treble");
@@ -1214,6 +1479,7 @@
         stateUpdatedAt = Date.now();
         const saved = {
           keySig,
+          uiLanguage,
           clef,
           correct: score.correct,
           total: score.total,
@@ -1278,7 +1544,7 @@
             updateScore();
             saveState();
           }
-          showFeedback("正确!", "correct");
+          showFeedback(t("correct"), "correct");
           advanceTimer = setTimeout(() => {
             advanceTimer = null;
             generateQuestion();
@@ -1290,7 +1556,7 @@
             saveState();
           }
           questionNotes.forEach(note => setKeyState(noteMidi(note), "hint"));
-          showFeedback(`提示: 需要 ${targetValues.length} 个音`, "wrong");
+          showFeedback(t("multiHint", targetValues.length), "wrong");
           feedbackType = "wrong";
         }
         multiPressedValues.clear();
@@ -1299,7 +1565,7 @@
       function keepWaitingForMultiInput() {
         multiInputTimer = null;
         if (!multiPressedValues.size || feedbackType === "correct") return;
-        showFeedback(`继续输入 ${multiPressedValues.size}/${questionMatchValues().length}`, "correct");
+        showFeedback(t("continueInput", multiPressedValues.size, questionMatchValues().length), "correct");
       }
 
       function pressMultiKey(pressedMidi) {
@@ -1309,7 +1575,7 @@
         if (multiPressedValues.size === 0) resetKeys();
         multiPressedValues.add(matchValueFromMidi(pressedMidi));
         setKeyState(pressedMidi, "correct");
-        showFeedback(`已输入 ${Math.min(multiPressedValues.size, targetCount)}/${targetCount}`, "correct");
+        showFeedback(t("entered", Math.min(multiPressedValues.size, targetCount), targetCount), "correct");
 
         if (multiInputTimer !== null) clearTimeout(multiInputTimer);
         if (multiPressedValues.size >= targetCount) {
@@ -1346,7 +1612,7 @@
           }
           clearAdvanceTimer();
           if (currentAnswerIndex < questionNotes.length - 1) {
-            showFeedback(`正确! ${currentAnswerIndex + 1}/${questionNotes.length}`, "correct");
+            showFeedback(t("partialCorrect", currentAnswerIndex + 1, questionNotes.length), "correct");
             advanceTimer = setTimeout(() => {
               advanceTimer = null;
               currentAnswerIndex += 1;
@@ -1357,7 +1623,7 @@
               drawStaff();
             }, 520);
           } else {
-            showFeedback("正确!", "correct");
+            showFeedback(t("correct"), "correct");
             advanceTimer = setTimeout(() => {
               advanceTimer = null;
               generateQuestion();
@@ -1371,7 +1637,7 @@
           }
           setKeyState(pressedMidi, "wrong");
           setKeyState(answerMidi, "hint");
-          showFeedback(`提示: 第 ${currentAnswerIndex + 1} 个是 ${answer}`, "wrong");
+          showFeedback(t("singleHint", currentAnswerIndex + 1, answer), "wrong");
           feedbackType = "wrong";
         }
       }
@@ -1575,11 +1841,12 @@
         return 4;
       }
 
-      Object.entries(KEY_SIGNATURES).forEach(([value, definition]) => {
-        const option = document.createElement("option");
-        option.value = value;
-        option.textContent = definition.name;
-        keySelect.append(option);
+      renderKeySignatureOptions();
+
+      languageSelect.addEventListener("change", () => {
+        uiLanguage = languageSelect.value;
+        applyLanguage();
+        saveState();
       });
 
       keySelect.addEventListener("change", () => {
@@ -1647,19 +1914,19 @@
 
       async function requestWakeLock() {
         if (!("wakeLock" in navigator)) {
-          updateWakeLockStatus("浏览器不支持常亮");
+          updateWakeLockStatus(t("wakeUnsupported"));
           return;
         }
         if (document.visibilityState !== "visible") return;
         try {
           wakeLock = await navigator.wakeLock.request("screen");
-          updateWakeLockStatus("已保持亮屏");
+          updateWakeLockStatus(t("wakeOn"));
           wakeLock.addEventListener("release", () => {
             wakeLock = null;
-            if (document.visibilityState === "visible") updateWakeLockStatus("点按后恢复常亮");
+            if (document.visibilityState === "visible") updateWakeLockStatus(t("wakeReleased"));
           });
         } catch (_) {
-          updateWakeLockStatus("点按后尝试常亮");
+          updateWakeLockStatus(t("wakeRetry"));
         }
       }
 
@@ -1686,7 +1953,7 @@
       window.addEventListener("beforeinstallprompt", event => {
         event.preventDefault();
         deferredInstallPrompt = event;
-        showInstallPrompt("把识谱练习安装到桌面，下次可以像 App 一样打开。");
+        showInstallPrompt(t("installText"));
       });
 
       installButton.addEventListener("click", async () => {
@@ -1697,7 +1964,7 @@
           await promptEvent.userChoice.catch(() => {});
           installPrompt.hidden = true;
         } else {
-          installText.textContent = "请在浏览器菜单中选择“添加到主屏幕”或“安装应用”。";
+          installText.textContent = t("installHelp");
         }
       });
 
@@ -1712,7 +1979,7 @@
 
       window.addEventListener("load", () => {
         setTimeout(() => {
-          if (!deferredInstallPrompt) showInstallPrompt("请在浏览器菜单中选择“添加到主屏幕”或“安装应用”。");
+          if (!deferredInstallPrompt) showInstallPrompt(t("installHelp"));
         }, 1200);
       });
       noteLabelInputs.forEach(input => {
@@ -1745,7 +2012,7 @@
 
       async function forceUpdateApp() {
         forceUpdateButton.disabled = true;
-        forceUpdateButton.textContent = "更新中";
+        forceUpdateButton.textContent = t("updating");
         try {
           if ("serviceWorker" in navigator) {
             const registrations = await navigator.serviceWorker.getRegistrations();

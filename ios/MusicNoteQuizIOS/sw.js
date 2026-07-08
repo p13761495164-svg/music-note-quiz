@@ -1,4 +1,4 @@
-const CACHE_NAME = "music-note-quiz-pwa-v20260708-audio-unlock";
+const CACHE_NAME = "music-note-quiz-pwa-v20260708-language-select";
 const APP_SHELL = [
   "./",
   "./index.html",
