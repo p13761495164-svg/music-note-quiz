@@ -3,9 +3,12 @@ import WebKit
 import CoreMIDI
 
 final class ViewController: UIViewController, WKNavigationDelegate {
+    private let hostedQuizURL = URL(string: "https://p13761495164-svg.github.io/music-note-quiz/")!
     private var webView: WKWebView!
     private var midiClient = MIDIClientRef()
     private var midiInputPort = MIDIPortRef()
+    private var hasLoadedBundledFallback = false
+    private var latestMIDIStatus: (message: String, connected: Bool)?
 
     override func loadView() {
         let configuration = WKWebViewConfiguration()
@@ -38,7 +41,7 @@ final class ViewController: UIViewController, WKNavigationDelegate {
 
     override func viewDidLoad() {
         super.viewDidLoad()
-        loadBundledQuiz()
+        loadHostedQuiz()
         startNativeMIDI()
     }
 
@@ -46,7 +49,15 @@ final class ViewController: UIViewController, WKNavigationDelegate {
         .darkContent
     }
 
+    private func loadHostedQuiz() {
+        var request = URLRequest(url: hostedQuizURL)
+        request.cachePolicy = .reloadRevalidatingCacheData
+        webView.load(request)
+    }
+
     private func loadBundledQuiz() {
+        guard !hasLoadedBundledFallback else { return }
+        hasLoadedBundledFallback = true
         guard let htmlURL = Bundle.main.url(forResource: "index", withExtension: "html") else {
             assertionFailure("Missing bundled index.html")
             return
@@ -128,6 +139,11 @@ final class ViewController: UIViewController, WKNavigationDelegate {
     }
 
     private func sendMIDIStatus(_ message: String, connected: Bool) {
+        latestMIDIStatus = (message, connected)
+        pushMIDIStatusToWeb(message, connected: connected)
+    }
+
+    private func pushMIDIStatusToWeb(_ message: String, connected: Bool) {
         let escapedMessage = javascriptStringLiteral(message)
         let connectedValue = connected ? "true" : "false"
         DispatchQueue.main.async { [weak self] in
@@ -156,5 +172,19 @@ final class ViewController: UIViewController, WKNavigationDelegate {
             return
         }
         decisionHandler(.allow)
+    }
+
+    func webView(_ webView: WKWebView, didFinish navigation: WKNavigation!) {
+        if let latestMIDIStatus {
+            pushMIDIStatusToWeb(latestMIDIStatus.message, connected: latestMIDIStatus.connected)
+        }
+    }
+
+    func webView(_ webView: WKWebView, didFail navigation: WKNavigation!, withError error: Error) {
+        loadBundledQuiz()
+    }
+
+    func webView(_ webView: WKWebView, didFailProvisionalNavigation navigation: WKNavigation!, withError error: Error) {
+        loadBundledQuiz()
     }
 }
