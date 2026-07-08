@@ -628,8 +628,11 @@
       const STORAGE_KEY = "music-note-quiz-state";
       const DB_NAME = "music-note-quiz";
       const DB_STORE = "state";
-      const KEYBOARD_START_OCTAVE = 2;
-      const KEYBOARD_OCTAVES = 4;
+      const PIANO_LOW_MIDI = 21;
+      const PIANO_HIGH_MIDI = 108;
+      const PIANO_CENTER_MIDI = 60;
+      const KEYBOARD_START_OCTAVE = 0;
+      const KEYBOARD_OCTAVES = 8;
       const WHITE_KEY_WIDTH = 32;
       const BLACK_KEY_WIDTH = 22;
       const BLACK_KEY_OFFSET = WHITE_KEY_WIDTH - BLACK_KEY_WIDTH / 2;
@@ -733,8 +736,10 @@
 
       function availableQuestionNotes() {
         const notes = [];
-        for (let octave = KEYBOARD_START_OCTAVE; octave < KEYBOARD_START_OCTAVE + KEYBOARD_OCTAVES; octave += 1) {
+        for (let octave = 0; octave <= 8; octave += 1) {
           NOTE_LETTERS.forEach(letter => {
+            const midi = (octave + 1) * 12 + pitchClass(letter);
+            if (midi < PIANO_LOW_MIDI || midi > PIANO_HIGH_MIDI) return;
             const step = staffStep(letter, octave, clef);
             if (Math.abs(step) <= MAX_LEDGER_STEP) notes.push([letter, octave, step]);
           });
@@ -1389,9 +1394,8 @@
         return { "C#":"Db", "D#":"Eb", "F#":"Gb", "G#":"Ab", "A#":"Bb" }[sharpName];
       }
 
-      function makeKey(note, octave, isBlack, left) {
+      function makeKey(note, octave, midi, isBlack, left) {
         const label = `${note}${octave}`;
-        const midi = (octave + 1) * 12 + pitchClass(note);
         const button = document.createElement("button");
         button.type = "button";
         button.className = isBlack ? "black-key" : "white-key";
@@ -1405,24 +1409,53 @@
         return button;
       }
 
+      function notePartsFromMidi(midi) {
+        const sharpNames = ["C", "C#", "D", "D#", "E", "F", "F#", "G", "G#", "A", "A#", "B"];
+        return {
+          note:sharpNames[pitchClassFromMidi(midi)],
+          octave:Math.floor(midi / 12) - 1
+        };
+      }
+
+      function isWhiteMidi(midi) {
+        return [0, 2, 4, 5, 7, 9, 11].includes(pitchClassFromMidi(midi));
+      }
+
+      function drawFullKeyboard(whiteWidth, blackWidth) {
+        let whiteIndex = 0;
+        for (let midi = PIANO_LOW_MIDI; midi <= PIANO_HIGH_MIDI; midi += 1) {
+          const { note, octave } = notePartsFromMidi(midi);
+          if (isWhiteMidi(midi)) {
+            keyboard.append(makeKey(note, octave, midi, false, whiteIndex * whiteWidth));
+            whiteIndex += 1;
+          } else {
+            keyboard.append(makeKey(blackLabel(note), octave, midi, true, whiteIndex * whiteWidth - blackWidth / 2));
+          }
+        }
+        keyboard.style.width = `${whiteIndex * whiteWidth}px`;
+      }
+
       function drawKeyboard() {
-        const whites = ["C","D","E","F","G","A","B"];
-        const blacks = { C:"C#", D:"D#", F:"F#", G:"G#", A:"A#" };
         const isLargeKeyboard = keyboardMode === "large";
-        const firstOctave = isLargeKeyboard ? LARGE_KEYBOARD_OCTAVE : KEYBOARD_START_OCTAVE;
-        const octaveCount = isLargeKeyboard ? 1 : KEYBOARD_OCTAVES;
         const whiteWidth = isLargeKeyboard ? LARGE_WHITE_KEY_WIDTH : WHITE_KEY_WIDTH;
-        const octaveWidth = isLargeKeyboard ? LARGE_OCTAVE_WIDTH : OCTAVE_WIDTH;
-        const blackOffset = isLargeKeyboard ? LARGE_BLACK_KEY_OFFSET : BLACK_KEY_OFFSET;
         keyboard.classList.toggle("large", isLargeKeyboard);
-        keyboard.style.width = `${octaveWidth * octaveCount}px`;
         keyboard.replaceChildren();
-        for (let octave = firstOctave; octave < firstOctave + octaveCount; octave += 1) {
-          const octaveLeft = (octave - firstOctave) * octaveWidth;
-          whites.forEach((note, index) => keyboard.append(makeKey(note, octave, false, octaveLeft + index * whiteWidth)));
+        if (isLargeKeyboard) {
+          const whites = ["C","D","E","F","G","A","B"];
+          const blacks = { C:"C#", D:"D#", F:"F#", G:"G#", A:"A#" };
+          keyboard.style.width = `${LARGE_OCTAVE_WIDTH}px`;
           whites.forEach((note, index) => {
-            if (blacks[note]) keyboard.append(makeKey(blackLabel(blacks[note]), octave, true, octaveLeft + index * whiteWidth + blackOffset));
+            const midi = (LARGE_KEYBOARD_OCTAVE + 1) * 12 + pitchClass(note);
+            keyboard.append(makeKey(note, LARGE_KEYBOARD_OCTAVE, midi, false, index * whiteWidth));
           });
+          whites.forEach((note, index) => {
+            if (!blacks[note]) return;
+            const blackNote = blackLabel(blacks[note]);
+            const midi = (LARGE_KEYBOARD_OCTAVE + 1) * 12 + pitchClass(blacks[note]);
+            keyboard.append(makeKey(blackNote, LARGE_KEYBOARD_OCTAVE, midi, true, index * whiteWidth + LARGE_BLACK_KEY_OFFSET));
+          });
+        } else {
+          drawFullKeyboard(whiteWidth, BLACK_KEY_WIDTH);
         }
         updateKeyboardRange();
       }
@@ -1430,9 +1463,18 @@
       function updateKeyboardRange() {
         if (keyboardMode === "large") return;
         const octave = keyboardDisplayOctave;
-        keyboardRange.textContent = `C${octave}-B${octave}`;
-        keyboardLeftButton.disabled = octave <= KEYBOARD_START_OCTAVE;
-        keyboardRightButton.disabled = octave >= KEYBOARD_START_OCTAVE + KEYBOARD_OCTAVES - 1;
+        keyboardRange.textContent = `A0-C8`;
+        keyboardLeftButton.disabled = octave <= 1;
+        keyboardRightButton.disabled = octave >= 7;
+      }
+
+      function scrollKeyboardToMidi(midi, behavior = "smooth") {
+        const key = keyboard.querySelector(`[data-midi="${midi}"]`);
+        if (!key) return;
+        const keyCenter = key.offsetLeft + key.offsetWidth / 2;
+        const maxLeft = Math.max(0, keyboard.scrollWidth - keyboardScroll.clientWidth);
+        const left = Math.min(maxLeft, Math.max(0, keyCenter - keyboardScroll.clientWidth / 2));
+        keyboardScroll.scrollTo({ left, behavior });
       }
 
       function scrollKeyboardToOctave(octave, behavior = "smooth") {
@@ -1441,10 +1483,10 @@
           keyboardScroll.scrollTo({ left:0, behavior });
           return;
         }
-        const targetOctave = Math.min(KEYBOARD_START_OCTAVE + KEYBOARD_OCTAVES - 1, Math.max(KEYBOARD_START_OCTAVE, octave));
+        const targetOctave = Math.min(7, Math.max(1, octave));
         keyboardDisplayOctave = targetOctave;
         updateKeyboardRange();
-        keyboardScroll.scrollTo({ left:(targetOctave - KEYBOARD_START_OCTAVE) * OCTAVE_WIDTH, behavior });
+        requestAnimationFrame(() => scrollKeyboardToMidi((targetOctave + 1) * 12, behavior));
       }
 
       function scrollKeyboardByOctave(direction) {
@@ -1452,7 +1494,7 @@
       }
 
       function defaultKeyboardOctave() {
-        return clef === "bass" ? 3 : 4;
+        return 4;
       }
 
       Object.entries(KEY_SIGNATURES).forEach(([value, definition]) => {
