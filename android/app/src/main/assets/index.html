@@ -946,7 +946,7 @@
       const STORAGE_KEY = "music-note-quiz-state";
       const DB_NAME = "music-note-quiz";
       const DB_STORE = "state";
-      const WEB_VERSION = "2026.07.19.1";
+      const WEB_VERSION = "2026.07.19.2";
       const KEYS_UNLOCK_PRODUCT_ID = "com.benhuang.musicnotequiz.keysunlock";
       const PIANO_LOW_MIDI = 21;
       const PIANO_HIGH_MIDI = 108;
@@ -1076,6 +1076,7 @@
         canPurchase: false,
         productPrice: ""
       };
+      let unlockPromptRequested = false;
       appVersion.textContent = `Web v${WEB_VERSION}`;
 
       function t(key, ...args) {
@@ -1108,7 +1109,7 @@
 
       function updateUnlockUi(message = "") {
         const locked = isNativeIOSApp() && !hasAllKeysAccess();
-        unlockPrompt.hidden = !locked;
+        unlockPrompt.hidden = !(locked && unlockPromptRequested);
         unlockPrice.textContent = entitlement.productPrice || "";
         unlockKeysButton.disabled = locked && !entitlement.canPurchase;
         restorePurchaseButton.disabled = false;
@@ -1119,6 +1120,7 @@
       function nativePurchaseBridge(action) {
         const bridge = window.webkit?.messageHandlers?.musicNoteQuizPurchase;
         if (!bridge) {
+          unlockPromptRequested = true;
           updateUnlockUi(t("purchaseUnavailable"));
           return;
         }
@@ -1126,11 +1128,13 @@
       }
 
       function requestUnlockKeys() {
+        unlockPromptRequested = true;
         unlockText.textContent = t("purchasing");
         nativePurchaseBridge("purchaseKeys");
       }
 
       function restoreUnlockKeys() {
+        unlockPromptRequested = true;
         unlockText.textContent = t("restoring");
         nativePurchaseBridge("restoreKeys");
       }
@@ -1143,6 +1147,7 @@
           canPurchase:nextEntitlement.canPurchase === undefined ? entitlement.canPurchase : Boolean(nextEntitlement.canPurchase)
         };
         if (entitlement.keysUnlocked) {
+          unlockPromptRequested = false;
           unlockPrompt.hidden = true;
         } else if (isNativeIOSApp() && keySig !== "C") {
           keySig = "C";
@@ -1153,6 +1158,7 @@
         const message = nextEntitlement.messageKey
           ? t(String(nextEntitlement.messageKey))
           : nextEntitlement.message ? String(nextEntitlement.message) : "";
+        if (message) unlockPromptRequested = true;
         updateUnlockUi(message);
       }
 
@@ -2020,8 +2026,8 @@
         const nextKeySig = keySelect.value;
         if (isLockedKey(nextKeySig)) {
           keySelect.value = keySig;
+          unlockPromptRequested = true;
           updateUnlockUi(t("unlockText"));
-          unlockPrompt.hidden = false;
           return;
         }
         keySig = nextKeySig;
