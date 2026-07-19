@@ -269,6 +269,55 @@
       padding: 0 12px;
       white-space: nowrap;
     }
+    .unlock-prompt {
+      width: 100%;
+      display: grid;
+      gap: 9px;
+      padding: 12px;
+      border: 1px solid color-mix(in srgb, var(--primary) 24%, var(--border));
+      border-radius: 11px;
+      background: color-mix(in srgb, var(--card) 70%, var(--secondary));
+    }
+    .unlock-prompt[hidden] { display: none; }
+    .unlock-title {
+      margin: 0;
+      color: var(--primary);
+      font-size: 14px;
+      font-weight: 850;
+    }
+    .unlock-text {
+      margin: 0;
+      color: var(--muted);
+      font-size: 12px;
+      line-height: 1.45;
+    }
+    .unlock-actions {
+      display: grid;
+      grid-template-columns: minmax(0, 1fr) auto auto;
+      gap: 8px;
+      align-items: center;
+    }
+    .unlock-price {
+      color: var(--primary);
+      font-size: 12px;
+      font-weight: 800;
+      white-space: nowrap;
+    }
+    .unlock-actions button {
+      min-height: 34px;
+      border-radius: 7px;
+      border: 1px solid var(--border);
+      background: var(--card);
+      color: var(--primary);
+      font-weight: 800;
+      cursor: pointer;
+      padding: 0 10px;
+    }
+    .unlock-actions .primary {
+      background: var(--primary);
+      color: var(--bg);
+      border-color: var(--primary);
+    }
     .install-actions {
       display: flex;
       gap: 8px;
@@ -553,6 +602,15 @@
           <p class="audio-prompt-text">使用 MIDI 键盘前，请点一次开启声音。iOS 需要触屏授权后才能自动播放题目声音。</p>
           <button id="audio-enable-button" class="utility-button audio-prompt-button" type="button">开启声音</button>
         </div>
+        <div id="unlock-prompt" class="unlock-prompt" hidden>
+          <p id="unlock-title" class="unlock-title">解锁全部调号</p>
+          <p id="unlock-text" class="unlock-text">C 大调可免费使用。解锁后可练习全部 12 个调。</p>
+          <div class="unlock-actions">
+            <span id="unlock-price" class="unlock-price"></span>
+            <button id="restore-purchase-button" type="button">恢复购买</button>
+            <button id="unlock-keys-button" class="primary" type="button">解锁全部调号</button>
+          </div>
+        </div>
 
         <div class="settings">
           <label class="setting">
@@ -684,6 +742,16 @@
           installHelp:"请在浏览器菜单中选择“添加到主屏幕”或“安装应用”。",
           audioHelp:"使用 MIDI 键盘前，请点一次开启声音。iOS 需要触屏授权后才能自动播放题目声音。",
           enableAudio:"开启声音",
+          unlockTitle:"解锁全部调号",
+          unlockText:"C 大调可免费使用。解锁后可练习全部 12 个调。",
+          unlockKeys:"解锁全部调号",
+          restorePurchase:"恢复购买",
+          purchaseUnavailable:"购买项目暂时不可用",
+          purchasing:"购买中...",
+          restoring:"恢复中...",
+          purchaseUnlocked:"已解锁全部调号",
+          purchaseCancelled:"购买已取消",
+          purchaseFailed:"购买未完成，请稍后再试",
           language:"语言:",
           key:"调号:",
           clef:"谱号:",
@@ -740,6 +808,16 @@
           installHelp:"ブラウザのメニューから「ホーム画面に追加」または「アプリをインストール」を選んでください。",
           audioHelp:"MIDI鍵盤を使う前に、一度だけ音を有効にしてください。iOSでは画面タップ後に音を自動再生できます。",
           enableAudio:"音を有効にする",
+          unlockTitle:"すべての調を解放",
+          unlockText:"C長調は無料で利用できます。購入すると12種類すべての調で練習できます。",
+          unlockKeys:"すべての調を解放",
+          restorePurchase:"購入を復元",
+          purchaseUnavailable:"購入項目は現在利用できません",
+          purchasing:"購入中...",
+          restoring:"復元中...",
+          purchaseUnlocked:"すべての調が解放されました",
+          purchaseCancelled:"購入がキャンセルされました",
+          purchaseFailed:"購入が完了しませんでした。後でもう一度お試しください",
           language:"言語:",
           key:"調:",
           clef:"音部記号:",
@@ -796,6 +874,16 @@
           installHelp:"Use your browser menu to choose Add to Home Screen or Install App.",
           audioHelp:"Before using a MIDI keyboard, tap once to enable sound. iOS requires a touch gesture before autoplaying question audio.",
           enableAudio:"Enable Sound",
+          unlockTitle:"Unlock All Keys",
+          unlockText:"C major is free. Unlock all 12 keys for full key signature practice.",
+          unlockKeys:"Unlock All Keys",
+          restorePurchase:"Restore Purchase",
+          purchaseUnavailable:"Purchase is temporarily unavailable",
+          purchasing:"Purchasing...",
+          restoring:"Restoring...",
+          purchaseUnlocked:"All keys unlocked",
+          purchaseCancelled:"Purchase cancelled",
+          purchaseFailed:"Purchase could not be completed. Please try again later.",
           language:"Language:",
           key:"Key:",
           clef:"Clef:",
@@ -858,7 +946,8 @@
       const STORAGE_KEY = "music-note-quiz-state";
       const DB_NAME = "music-note-quiz";
       const DB_STORE = "state";
-      const WEB_VERSION = "2026.07.08.4";
+      const WEB_VERSION = "2026.07.19.1";
+      const KEYS_UNLOCK_PRODUCT_ID = "com.benhuang.musicnotequiz.keysunlock";
       const PIANO_LOW_MIDI = 21;
       const PIANO_HIGH_MIDI = 108;
       const PIANO_CENTER_MIDI = 60;
@@ -960,6 +1049,12 @@
       const installDismissButton = document.querySelector("#install-dismiss-button");
       const audioPrompt = document.querySelector("#audio-prompt");
       const audioEnableButton = document.querySelector("#audio-enable-button");
+      const unlockPrompt = document.querySelector("#unlock-prompt");
+      const unlockTitle = document.querySelector("#unlock-title");
+      const unlockText = document.querySelector("#unlock-text");
+      const unlockPrice = document.querySelector("#unlock-price");
+      const unlockKeysButton = document.querySelector("#unlock-keys-button");
+      const restorePurchaseButton = document.querySelector("#restore-purchase-button");
       const noteLabelInputs = [...document.querySelectorAll('input[name="note-label-mode"]')];
       const soundCountInputs = [...document.querySelectorAll('input[name="sound-count"]')];
       const feedbackPill = document.querySelector("#feedback-pill");
@@ -976,6 +1071,11 @@
       let deferredInstallPrompt = null;
       let wakeLock = null;
       let audioUnlocked = false;
+      let entitlement = {
+        keysUnlocked: !isNativeIOSApp(),
+        canPurchase: false,
+        productPrice: ""
+      };
       appVersion.textContent = `Web v${WEB_VERSION}`;
 
       function t(key, ...args) {
@@ -987,15 +1087,73 @@
         return `${value}${t("major")}`;
       }
 
+      function hasAllKeysAccess() {
+        return entitlement.keysUnlocked || !isNativeIOSApp();
+      }
+
+      function isLockedKey(value) {
+        return value !== "C" && !hasAllKeysAccess();
+      }
+
       function renderKeySignatureOptions() {
         keySelect.replaceChildren();
         Object.keys(KEY_SIGNATURES).forEach(value => {
           const option = document.createElement("option");
           option.value = value;
-          option.textContent = keySignatureName(value);
+          option.textContent = isLockedKey(value) ? `${keySignatureName(value)} 🔒` : keySignatureName(value);
           keySelect.append(option);
         });
         keySelect.value = keySig;
+      }
+
+      function updateUnlockUi(message = "") {
+        const locked = isNativeIOSApp() && !hasAllKeysAccess();
+        unlockPrompt.hidden = !locked;
+        unlockPrice.textContent = entitlement.productPrice || "";
+        unlockKeysButton.disabled = locked && !entitlement.canPurchase;
+        restorePurchaseButton.disabled = false;
+        if (locked && message) unlockText.textContent = message;
+        else unlockText.textContent = t("unlockText");
+      }
+
+      function nativePurchaseBridge(action) {
+        const bridge = window.webkit?.messageHandlers?.musicNoteQuizPurchase;
+        if (!bridge) {
+          updateUnlockUi(t("purchaseUnavailable"));
+          return;
+        }
+        bridge.postMessage({ action, productId:KEYS_UNLOCK_PRODUCT_ID });
+      }
+
+      function requestUnlockKeys() {
+        unlockText.textContent = t("purchasing");
+        nativePurchaseBridge("purchaseKeys");
+      }
+
+      function restoreUnlockKeys() {
+        unlockText.textContent = t("restoring");
+        nativePurchaseBridge("restoreKeys");
+      }
+
+      function applyEntitlement(nextEntitlement = {}) {
+        entitlement = {
+          ...entitlement,
+          ...nextEntitlement,
+          keysUnlocked:nextEntitlement.keysUnlocked === undefined ? entitlement.keysUnlocked : Boolean(nextEntitlement.keysUnlocked),
+          canPurchase:nextEntitlement.canPurchase === undefined ? entitlement.canPurchase : Boolean(nextEntitlement.canPurchase)
+        };
+        if (entitlement.keysUnlocked) {
+          unlockPrompt.hidden = true;
+        } else if (isNativeIOSApp() && keySig !== "C") {
+          keySig = "C";
+          saveState();
+          generateQuestion();
+        }
+        renderKeySignatureOptions();
+        const message = nextEntitlement.messageKey
+          ? t(String(nextEntitlement.messageKey))
+          : nextEntitlement.message ? String(nextEntitlement.message) : "";
+        updateUnlockUi(message);
       }
 
       function updateWakeLockIdleText() {
@@ -1017,6 +1175,10 @@
         installDismissButton.textContent = t("later");
         document.querySelector(".audio-prompt-text").textContent = t("audioHelp");
         audioEnableButton.textContent = t("enableAudio");
+        unlockTitle.textContent = t("unlockTitle");
+        unlockText.textContent = t("unlockText");
+        unlockKeysButton.textContent = t("unlockKeys");
+        restorePurchaseButton.textContent = t("restorePurchase");
         document.querySelector("#language-label").textContent = t("language");
         document.querySelector("#key-label").textContent = t("key");
         document.querySelector("#clef-label").textContent = t("clef");
@@ -1047,6 +1209,7 @@
         nextButton.textContent = t("next");
         languageSelect.value = uiLanguage;
         renderKeySignatureOptions();
+        updateUnlockUi();
       }
 
       function svg(name, attrs = {}, text = "") {
@@ -1352,6 +1515,9 @@
       window.musicNoteQuizNativeMidiStatus = (message, connected = false) => {
         updateMidiStatus(String(message || "iOS MIDI"), Boolean(connected));
       };
+      window.musicNoteQuizSetEntitlement = payload => {
+        applyEntitlement(payload && typeof payload === "object" ? payload : {});
+      };
 
       function showAudioPrompt() {
         if (audioUnlocked) return;
@@ -1431,6 +1597,7 @@
 
       function refreshSavedSettings() {
         applyLanguage();
+        if (isLockedKey(keySig)) keySig = "C";
         keySelect.value = keySig;
         languageSelect.value = uiLanguage;
         trebleButton.classList.toggle("active", clef === "treble");
@@ -1850,7 +2017,14 @@
       });
 
       keySelect.addEventListener("change", () => {
-        keySig = keySelect.value;
+        const nextKeySig = keySelect.value;
+        if (isLockedKey(nextKeySig)) {
+          keySelect.value = keySig;
+          updateUnlockUi(t("unlockText"));
+          unlockPrompt.hidden = false;
+          return;
+        }
+        keySig = nextKeySig;
         saveState();
         drawKeyboard();
         generateQuestion();
@@ -1999,6 +2173,8 @@
       nextButton.addEventListener("click", generateQuestion);
       replayButton.addEventListener("click", playQuestionNotes);
       forceUpdateButton.addEventListener("click", forceUpdateApp);
+      unlockKeysButton.addEventListener("click", requestUnlockKeys);
+      restorePurchaseButton.addEventListener("click", restoreUnlockKeys);
       audioEnableButton.addEventListener("click", () => unlockAudio({ replay:true }));
       document.addEventListener("pointerdown", unlockAudio, { once:true });
       window.addEventListener("load", requestWakeLock);

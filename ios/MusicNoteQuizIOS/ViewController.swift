@@ -1,20 +1,26 @@
 import UIKit
 import WebKit
 import CoreMIDI
+import StoreKit
 
-final class ViewController: UIViewController, WKNavigationDelegate {
+final class ViewController: UIViewController, WKNavigationDelegate, WKScriptMessageHandler {
     private let hostedQuizURL = URL(string: "https://p13761495164-svg.github.io/music-note-quiz/")!
+    private let keysUnlockProductID = "com.benhuang.musicnotequiz.keysunlock"
     private var webView: WKWebView!
     private var midiClient = MIDIClientRef()
     private var midiInputPort = MIDIPortRef()
     private var hasLoadedBundledFallback = false
     private var latestMIDIStatus: (message: String, connected: Bool)?
+    private var keysProduct: Product?
+    private var keysUnlocked = false
+    private var transactionUpdatesTask: Task<Void, Never>?
 
     override func loadView() {
         let configuration = WKWebViewConfiguration()
         configuration.defaultWebpagePreferences.allowsContentJavaScript = true
         configuration.websiteDataStore = .default()
         configuration.applicationNameForUserAgent = "MusicNoteQuizIOS"
+        configuration.userContentController.add(self, name: "musicNoteQuizPurchase")
 
         let webView = WKWebView(frame: .zero, configuration: configuration)
         webView.translatesAutoresizingMaskIntoConstraints = false
@@ -43,6 +49,15 @@ final class ViewController: UIViewController, WKNavigationDelegate {
         super.viewDidLoad()
         loadHostedQuiz()
         startNativeMIDI()
+        transactionUpdatesTask = listenForTransactionUpdates()
+        Task { [weak self] in
+            await self?.configurePurchases()
+        }
+    }
+
+    deinit {
+        transactionUpdatesTask?.cancel()
+        webView?.configuration.userContentController.removeScriptMessageHandler(forName: "musicNoteQuizPurchase")
     }
 
     override var preferredStatusBarStyle: UIStatusBarStyle {
@@ -162,6 +177,130 @@ final class ViewController: UIViewController, WKNavigationDelegate {
         return String(json.dropFirst().dropLast())
     }
 
+    private func configurePurchases() async {
+        await refreshPurchasedKeys()
+        await loadKeysProduct()
+        sendEntitlementToWeb()
+    }
+
+    private func loadKeysProduct() async {
+        do {
+            keysProduct = try await Product.products(for: [keysUnlockProductID]).first
+        } catch {
+            keysProduct = nil
+        }
+    }
+
+    private func refreshPurchasedKeys() async {
+        var unlocked = false
+        for await result in Transaction.currentEntitlements {
+            guard let transaction = verifiedTransaction(from: result) else { continue }
+            if transaction.productID == keysUnlockProductID {
+                unlocked = true
+                break
+            }
+        }
+        keysUnlocked = unlocked
+    }
+
+    private func listenForTransactionUpdates() -> Task<Void, Never> {
+        Task { @MainActor [weak self] in
+            for await result in Transaction.updates {
+                guard let self, let transaction = self.verifiedTransaction(from: result) else { continue }
+                if transaction.productID == self.keysUnlockProductID {
+                    await self.refreshPurchasedKeys()
+                    await transaction.finish()
+                    self.sendEntitlementToWeb(message: "purchaseUnlocked")
+                }
+            }
+        }
+    }
+
+    private func verifiedTransaction(from result: VerificationResult<Transaction>) -> Transaction? {
+        switch result {
+        case .verified(let transaction):
+            return transaction
+        case .unverified:
+            return nil
+        }
+    }
+
+    private func purchaseKeys() async {
+        if keysProduct == nil { await loadKeysProduct() }
+        guard let keysProduct else {
+            sendEntitlementToWeb(message: "purchaseUnavailable")
+            return
+        }
+
+        do {
+            let result = try await keysProduct.purchase()
+            switch result {
+            case .success(let verification):
+                guard let transaction = verifiedTransaction(from: verification) else {
+                    sendEntitlementToWeb(message: "purchaseFailed")
+                    return
+                }
+                keysUnlocked = true
+                await transaction.finish()
+                sendEntitlementToWeb(message: "purchaseUnlocked")
+            case .userCancelled:
+                sendEntitlementToWeb(message: "purchaseCancelled")
+            case .pending:
+                sendEntitlementToWeb(message: "purchasing")
+            @unknown default:
+                sendEntitlementToWeb(message: "purchaseFailed")
+            }
+        } catch {
+            sendEntitlementToWeb(message: "purchaseFailed")
+        }
+    }
+
+    private func restoreKeys() async {
+        do {
+            try await AppStore.sync()
+            await refreshPurchasedKeys()
+            sendEntitlementToWeb(message: keysUnlocked ? "purchaseUnlocked" : "purchaseFailed")
+        } catch {
+            sendEntitlementToWeb(message: "purchaseFailed")
+        }
+    }
+
+    private func sendEntitlementToWeb(message: String? = nil) {
+        var payload: [String: Any] = [
+            "keysUnlocked": keysUnlocked,
+            "canPurchase": keysProduct != nil,
+            "productPrice": keysProduct?.displayPrice ?? ""
+        ]
+        if let message {
+            payload["messageKey"] = message
+        }
+        guard
+            let data = try? JSONSerialization.data(withJSONObject: payload),
+            let json = String(data: data, encoding: .utf8)
+        else { return }
+
+        DispatchQueue.main.async { [weak self] in
+            self?.webView.evaluateJavaScript("window.musicNoteQuizSetEntitlement && window.musicNoteQuizSetEntitlement(\(json));")
+        }
+    }
+
+    func userContentController(_ userContentController: WKUserContentController, didReceive message: WKScriptMessage) {
+        guard
+            message.name == "musicNoteQuizPurchase",
+            let body = message.body as? [String: Any],
+            let action = body["action"] as? String
+        else { return }
+
+        switch action {
+        case "purchaseKeys":
+            Task { [weak self] in await self?.purchaseKeys() }
+        case "restoreKeys":
+            Task { [weak self] in await self?.restoreKeys() }
+        default:
+            break
+        }
+    }
+
     func webView(
         _ webView: WKWebView,
         decidePolicyFor navigationAction: WKNavigationAction,
@@ -178,6 +317,7 @@ final class ViewController: UIViewController, WKNavigationDelegate {
         if let latestMIDIStatus {
             pushMIDIStatusToWeb(latestMIDIStatus.message, connected: latestMIDIStatus.connected)
         }
+        sendEntitlementToWeb()
     }
 
     func webView(_ webView: WKWebView, didFail navigation: WKNavigation!, withError error: Error) {
