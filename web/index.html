@@ -946,7 +946,7 @@
       const STORAGE_KEY = "music-note-quiz-state";
       const DB_NAME = "music-note-quiz";
       const DB_STORE = "state";
-      const WEB_VERSION = "2026.07.19.2";
+      const WEB_VERSION = "2026.07.19.3";
       const KEYS_UNLOCK_PRODUCT_ID = "com.benhuang.musicnotequiz.keysunlock";
       const PIANO_LOW_MIDI = 21;
       const PIANO_HIGH_MIDI = 108;
@@ -1101,7 +1101,7 @@
         Object.keys(KEY_SIGNATURES).forEach(value => {
           const option = document.createElement("option");
           option.value = value;
-          option.textContent = isLockedKey(value) ? `${keySignatureName(value)} 🔒` : keySignatureName(value);
+          option.textContent = keySignatureName(value);
           keySelect.append(option);
         });
         keySelect.value = keySig;
