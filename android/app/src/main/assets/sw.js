@@ -1,4 +1,4 @@
-const CACHE_NAME = "music-note-quiz-pwa-v20260728-free-c-on-start";
+const CACHE_NAME = "music-note-quiz-pwa-v20260728-ipad-responsive";
 const APP_SHELL = [
   "./",
   "./index.html",

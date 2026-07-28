@@ -499,6 +499,24 @@
     }
     .next.show { display: block; }
 
+    @media (min-width: 768px) {
+      main {
+        padding: clamp(18px, 3vw, 40px);
+      }
+      .card {
+        width: min(1180px, 100%);
+      }
+      .content {
+        padding-inline: clamp(24px, 3vw, 42px);
+      }
+      .staff-shell {
+        width: min(920px, 100%);
+      }
+      .keyboard-scroll {
+        width: 100%;
+      }
+    }
+
     @media (max-width: 560px) {
       main { display: block; padding: 10px 0 0; }
       .card { min-height: 100dvh; border: 0; border-radius: 0; box-shadow: none; }
@@ -560,10 +578,10 @@
         gap: 9px;
       }
       .settings {
-        width: min(860px, 100%);
+        width: min(1180px, 100%);
       }
       .staff-shell {
-        width: min(760px, 100%);
+        width: min(1040px, 100%);
       }
       .keyboard-scroll {
         width: 100%;
@@ -946,7 +964,7 @@
       const STORAGE_KEY = "music-note-quiz-state";
       const DB_NAME = "music-note-quiz";
       const DB_STORE = "state";
-      const WEB_VERSION = "2026.07.28.1";
+      const WEB_VERSION = "2026.07.28.2";
       const KEYS_UNLOCK_PRODUCT_ID = "com.benhuang.musicnotequiz.keysunlock";
       const PIANO_LOW_MIDI = 21;
       const PIANO_HIGH_MIDI = 108;
