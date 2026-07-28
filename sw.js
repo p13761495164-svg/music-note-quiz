@@ -1,4 +1,4 @@
-const CACHE_NAME = "music-note-quiz-pwa-v20260719-no-key-lock-labels";
+const CACHE_NAME = "music-note-quiz-pwa-v20260728-free-c-on-start";
 const APP_SHELL = [
   "./",
   "./index.html",

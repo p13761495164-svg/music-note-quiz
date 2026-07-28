@@ -946,7 +946,7 @@
       const STORAGE_KEY = "music-note-quiz-state";
       const DB_NAME = "music-note-quiz";
       const DB_STORE = "state";
-      const WEB_VERSION = "2026.07.19.3";
+      const WEB_VERSION = "2026.07.28.1";
       const KEYS_UNLOCK_PRODUCT_ID = "com.benhuang.musicnotequiz.keysunlock";
       const PIANO_LOW_MIDI = 21;
       const PIANO_HIGH_MIDI = 108;
@@ -1003,6 +1003,7 @@
       function applySavedState(saved) {
         if (!saved || typeof saved !== "object") return false;
         if (Object.hasOwn(KEY_SIGNATURES, saved.keySig)) keySig = saved.keySig;
+        if (isNativeIOSApp() && keySig !== "C") keySig = "C";
         if (Object.hasOwn(UI_TEXT, saved.uiLanguage)) uiLanguage = saved.uiLanguage;
         if (saved.clef === "treble" || saved.clef === "bass") clef = saved.clef;
         if (Number.isInteger(saved.correct) && Number.isInteger(saved.total)
